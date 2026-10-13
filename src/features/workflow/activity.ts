@@ -40,6 +40,7 @@ export interface ActivityEntry {
 }
 
 function messageKind(message: Message): ActivityKind {
+  if (message.event?.phase === "member-invited") return "system";
   if (message.event) {
     const eventKinds: Record<NonNullable<Message["event"]>["kind"], ActivityKind> = {
       start: "start",
@@ -97,7 +98,10 @@ export function buildActivityLog(
       ? agents.find((agent) => agent.name === legacyFailureName)?.id
       : undefined;
     const invitedName = /^总制片邀请了 (.+) 加入项目群$/.exec(message.content)?.[1];
-    const invitedAgent = agents.find((agent) => agent.name === invitedName)?.id;
+    const invitedAgent = invitedName
+      ? message.event?.toAgentId ||
+        agents.find((agent) => agent.name === invitedName)?.id
+      : undefined;
     const relatedNodeIds = [
       ...new Set(
         [message.nodeId, message.event?.fromNodeId, message.event?.toNodeId].filter(

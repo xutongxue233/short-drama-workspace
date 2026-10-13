@@ -34,7 +34,9 @@ async function fixture(t, options) {
 
 const events = (project, nodeId) =>
   project.messages.filter(
-    (message) => message.event && (!nodeId || message.nodeId === nodeId),
+    (message) =>
+      ["workflow", "chat"].includes(message.event?.scope) &&
+      (!nodeId || message.nodeId === nodeId),
   );
 
 test("execution, review, revision and downstream handoff preserve their actual order and identifiers", async (t) => {

@@ -139,6 +139,63 @@ test("disabled or outside mentions use the coordinator while invalid explicit re
   assert.equal(fx.project.messages.length, before);
 });
 
+test("custom agents keep stable invitation identity and discuss through their own binding after rename", async (t) => {
+  const fx = await fixture(t);
+  const agent = {
+    id: "agent-custom-dialogue",
+    name: "对白顾问",
+    role: "对白润色",
+    description: "帮助检查人物语言",
+    color: "#77aabb",
+    enabled: true,
+    providerId: "provider-text",
+    model: "custom-dialogue-model",
+    systemPrompt: "你是项目的对白顾问，保留人物个性。",
+  };
+  fx.state.agents.push(agent);
+  const nodes = structuredClone(fx.project.nodes);
+  const invite = () =>
+    fx.api(`/projects/${fx.project.id}/invite`, { agentId: agent.id });
+  assert.equal((await invite()).status, 200);
+  const invitation = fx.project.messages.at(-1);
+  assert.equal(invitation.event.toAgentId, agent.id);
+  assert.equal(invitation.event.fromAgentId, "producer");
+  assert.equal(invitation.event.phase, "member-invited");
+  const count = fx.project.messages.length;
+  assert.equal((await invite()).status, 200);
+  assert.equal(fx.project.messages.length, count);
+  assert.equal(fx.project.members.filter((id) => id === agent.id).length, 1);
+
+  agent.name = "台词顾问";
+  const sent = await fx.send({ content: "@台词顾问 开始制作" });
+  assert.equal(sent.status, 201);
+  const reply = fx.project.messages.at(-1);
+  assert.equal(reply.agentId, agent.id);
+  assert.equal(reply.replyTo, sent.body.id);
+  assert.equal(reply.type, "text");
+  assert.equal(fx.requests.length, 1);
+  assert.equal(fx.requests[0].body.model, agent.model);
+  assert.ok(
+    fx.requests[0].body.messages.some((message) =>
+      message.content.includes(agent.systemPrompt),
+    ),
+  );
+  assert.deepEqual(fx.project.nodes, nodes);
+  assert.equal(fx.project.running, false);
+  assert.equal(invitation.event.toAgentId, agent.id);
+  assert.match(invitation.content, /对白顾问/);
+
+  agent.enabled = false;
+  const beforeDisabled = fx.project.messages.length;
+  assert.equal((await invite()).status, 409);
+  assert.equal(
+    (await fx.send({ content: "停用时不应保存", agentId: agent.id })).status,
+    400,
+  );
+  assert.equal(fx.project.messages.length, beforeDisabled);
+  assert.equal(fx.requests.length, 1);
+});
+
 test("disabled and missing bindings produce actionable agent errors without silently switching providers", async (t) => {
   const fx = await fixture(t);
   fx.state.providers[0].enabled = false;

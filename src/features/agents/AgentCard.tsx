@@ -1,7 +1,8 @@
-import { ChevronRight, MessageSquareText, Pencil, Sparkles } from "lucide-react";
+import { Copy, MessageSquareText, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { type Agent, type Provider } from "../../types";
-import { Button, Switch } from "../../ui";
+import { Button, IconButton, Switch } from "../../ui";
 import { agentIcon } from "./agentIcons";
+import { isBuiltInAgent } from "./agentConfig";
 
 interface AgentCardProps {
   agent: Agent;
@@ -10,6 +11,8 @@ interface AgentCardProps {
   busy: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  onCopy: () => void;
+  onDelete: () => void;
 }
 
 export function AgentCard({
@@ -19,21 +22,29 @@ export function AgentCard({
   busy,
   onToggle,
   onEdit,
+  onCopy,
+  onDelete,
 }: AgentCardProps) {
   const Icon = agentIcon(agent.id);
   return (
     <article
+      aria-label={agent.name}
       className={`settings-agent-card ${!agent.enabled ? "settings-disabled" : ""}`}
     >
       <div className="settings-agent-card-top">
-        <div
-          className="settings-agent-avatar"
-          style={{
-            color: `color-mix(in srgb, ${agent.color || "#6e56cf"} 65%, #383344)`,
-            background: `color-mix(in srgb, ${agent.color || "#6e56cf"} 16%, white)`,
-          }}
-        >
-          <Icon size={25} />
+        <div className="agent-card-identity">
+          <div
+            className="settings-agent-avatar"
+            style={{
+              color: `color-mix(in srgb, ${agent.color || "#6e56cf"} 65%, #383344)`,
+              background: `color-mix(in srgb, ${agent.color || "#6e56cf"} 16%, white)`,
+            }}
+          >
+            <Icon size={25} />
+          </div>
+          <span className="agent-kind-label">
+            {isBuiltInAgent(agent) ? "内置" : "自定义"}
+          </span>
         </div>
         <Switch
           checked={agent.enabled}
@@ -55,8 +66,8 @@ export function AgentCard({
       </p>
       <div className="settings-agent-binding">
         <Sparkles size={14} />
-        <span title={agent.model || provider?.model || "跟随默认模型"}>
-          {agent.model || provider?.model || "跟随默认模型"}
+        <span title={agent.model || provider?.model || "尚未配置模型"}>
+          {agent.model || provider?.model || "尚未配置模型"}
         </span>
         {provider && (
           <span className="settings-provider-label" title={provider.name}>
@@ -64,22 +75,36 @@ export function AgentCard({
           </span>
         )}
       </div>
+      {(!provider || !provider.enabled) && (
+        <p className="agent-binding-note">
+          {provider ? "模型服务已停用" : "请配置模型服务后使用"}
+        </p>
+      )}
       <div className="settings-agent-footer">
         <span>
           <MessageSquareText size={14} />
           {projectCount ? `参与 ${projectCount} 个项目` : "等待加入制作组"}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={`配置 ${agent.name}`}
-          disabled={busy}
-          onClick={onEdit}
-        >
-          <Pencil size={14} />
-          配置
-          <ChevronRight size={14} />
-        </Button>
+        <div className="agent-card-actions">
+          <IconButton label={`复制 ${agent.name}`} disabled={busy} onClick={onCopy}>
+            <Copy size={14} />
+          </IconButton>
+          {!isBuiltInAgent(agent) && (
+            <IconButton label={`删除 ${agent.name}`} disabled={busy} onClick={onDelete}>
+              <Trash2 size={14} />
+            </IconButton>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`配置 ${agent.name}`}
+            disabled={busy}
+            onClick={onEdit}
+          >
+            <Pencil size={14} />
+            配置
+          </Button>
+        </div>
       </div>
     </article>
   );
