@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createApp } from "./app.mjs";
 import { createStore } from "./store.mjs";
 import { createProject, createSeedState } from "./seed.mjs";
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import {
   exportSkillMarkdown,
   formatSkillInstructions,
@@ -36,6 +37,7 @@ async function fixture(t, { filename = ":memory:", seed = createSeedState } = {}
   const server = createServer(service.app);
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}/api`;
+  const { fetch } = await authenticatedFetch(base);
   let closed = false;
   const close = async () => {
     if (closed) return;
@@ -274,7 +276,11 @@ test("skills persist alongside existing v1 data across restarts without altering
   const before = structuredClone(store.getState());
   store.close();
   const fx = await fixture(t, { filename });
-  assert.deepEqual(fx.state, before);
+  const migrated = structuredClone(fx.state);
+  delete migrated.security;
+  for (const project of migrated.projects) delete project.participants;
+  assert.deepEqual(migrated, before);
+  const ownedProjects = structuredClone(fx.state.projects);
   assert.deepEqual((await fx.api("/state?compact=1")).body.skills, []);
   const skill = (await fx.api("/skills", draft())).body;
   assert.equal(
@@ -286,7 +292,7 @@ test("skills persist alongside existing v1 data across restarts without altering
   const reopened = createStore({ filename });
   try {
     assert.deepEqual(reopened.getState(), expected);
-    assert.deepEqual(reopened.getState().projects, before.projects);
+    assert.deepEqual(reopened.getState().projects, ownedProjects);
     assert.deepEqual(reopened.getState().custom, before.custom);
   } finally {
     reopened.close();

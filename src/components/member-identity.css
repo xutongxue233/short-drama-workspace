@@ -66,3 +66,31 @@
 .studio-member-identity.small .studio-member-body > small {
   font-size: 9px;
 }
+.studio-member-kind.human {
+  border-color: #dae3ee;
+  background: #f0f4f9;
+  color: #667892;
+}
+.studio-member-kind.bot {
+  border-color: #d5e8e6;
+  background: #eef8f6;
+  color: #497c75;
+}
+.avatar.studio-member-bot-avatar {
+  background: #eaf5f2;
+  color: #497c75;
+}
+.studio-member-self {
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.studio-member-access {
+  color: var(--secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 10px;
+  white-space: nowrap;
+}

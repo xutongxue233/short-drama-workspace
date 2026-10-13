@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -90,8 +91,9 @@ async function fixture(t, kind = "text") {
     await rm(dataDir, { recursive: true, force: true });
   });
   const url = `http://127.0.0.1:${server.address().port}`;
+  const { fetch: authorizedFetch } = await authenticatedFetch(url, originalFetch);
   const post = (path, body) =>
-    originalFetch(`${url}${path}`, {
+    authorizedFetch(`${url}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -107,7 +109,8 @@ async function fixture(t, kind = "text") {
     },
     isClosed: () => storeClosed,
     signal: () => upstreamSignal,
-    state: () => originalFetch(`${url}/api/state`).then((response) => response.json()),
+    state: () =>
+      authorizedFetch(`${url}/api/state`).then((response) => response.json()),
   };
 }
 

@@ -3,6 +3,7 @@ import { HttpError } from "../http/errors.mjs";
 import { bodyObject } from "../http/validation.mjs";
 import { now, uid } from "../seed.mjs";
 import { exportSkillMarkdown, parseSkillMarkdown, skillInput } from "../skills.mjs";
+import { publicSkill } from "../auth/authorization.mjs";
 
 function assertVersion(input, skill) {
   if (!Number.isSafeInteger(input.version) || input.version < 1)
@@ -21,7 +22,11 @@ export function mountSkillsRoutes(app, { getState, save }) {
     if ((getState().skills || []).some((item) => item.name === name && item.id !== id))
       throw new HttpError(409, "Skill 名称已存在，请使用不同名称。");
   };
-  app.get("/api/skills", (_req, res) => res.json(getState().skills || []));
+  app.get("/api/skills", (req, res) =>
+    res.json(
+      (getState().skills || []).map((skill) => publicSkill(skill, req.auth.user)),
+    ),
+  );
   app.post("/api/skills/parse", (req, res) =>
     res.json(parseSkillMarkdown(bodyObject(req).markdown)),
   );

@@ -204,9 +204,26 @@ async function routeFixture(t) {
     findProject: () => project,
     workflow,
     chat: { getPending: () => null },
+    auth: {
+      audit(action) {
+        (state.auditFixture ||= []).push(action);
+      },
+    },
   };
   const app = express();
   app.use(express.json());
+  // Route-unit fixture: full authentication is exercised through createApp elsewhere.
+  app.use((req, _res, next) => {
+    req.auth = {
+      user: {
+        id: "fixture-owner",
+        displayName: "测试负责人",
+        kind: "human",
+        role: "admin",
+      },
+    };
+    next();
+  });
   mountProjectsRoutes(app, dependencies);
   mountAgentsRoutes(app, dependencies);
   mountAssetsRoutes(app, dependencies);

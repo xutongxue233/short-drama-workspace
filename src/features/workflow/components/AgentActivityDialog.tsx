@@ -3,7 +3,7 @@ import { useId, useMemo, useState } from "react";
 import { TextContent } from "../../../components/TextContent";
 import { MemberKindBadge } from "../../../components/MemberIdentity";
 import { statusNames } from "../../../shared/labels";
-import { memberById } from "../../../shared/project-members";
+import { memberById, messageMember } from "../../../shared/project-members";
 import type { Agent, Project } from "../../../types";
 import {
   Badge,
@@ -74,13 +74,18 @@ export function AgentActivityDialog({
   });
   const knownIds = new Set([
     ...project.members,
+    ...(project.participants ?? []).map((entry) => entry.userId),
     ...(initialAgentId ? [initialAgentId] : []),
     ...entries.flatMap((entry) => entry.relatedAgentIds),
   ]);
   knownIds.delete("user");
   knownIds.delete("system");
   const agentName = (id: string) =>
-    id === "system" ? "系统" : memberById(id, agents)?.name || id;
+    id === "system"
+      ? "系统"
+      : memberById(id, agents, project.participants)?.name ||
+        entries.find((entry) => entry.sender?.id === id)?.sender?.displayName ||
+        "历史成员";
   const selectedNode = project.nodes.find((node) => node.id === nodeId);
   const episodeNumber = project.currentEpisode?.number || 1;
   const reset = () => {
@@ -105,10 +110,15 @@ export function AgentActivityDialog({
               onChange={(event) => setAgentId(event.target.value)}
             >
               <option value="all">全部成员</option>
-              <option value="user">我</option>
+              <option value="user">历史用户</option>
               {[...knownIds].map((id) => (
                 <option key={id} value={id}>
-                  {agentName(id)} · Agent
+                  {agentName(id)} ·{" "}
+                  {memberById(id, agents, project.participants)?.kind === "agent"
+                    ? "Agent"
+                    : memberById(id, agents, project.participants)?.kind === "bot"
+                      ? "Bot"
+                      : "用户"}
                 </option>
               ))}
               <option value="system">系统</option>
@@ -174,7 +184,20 @@ export function AgentActivityDialog({
           <ol className="activity-timeline" aria-label="工作记录">
             {ordered.slice(0, visibleCount).map((entry) => {
               const node = project.nodes.find((item) => item.id === entry.nodeId);
-              const member = memberById(entry.agentId, agents);
+              const member = entry.sender
+                ? messageMember(
+                    {
+                      id: entry.id,
+                      agentId: entry.agentId,
+                      sender: entry.sender,
+                      content: "",
+                      createdAt: "",
+                      type: "text",
+                    },
+                    project,
+                    agents,
+                  )
+                : memberById(entry.agentId, agents, project.participants);
               return (
                 <li
                   key={entry.id}

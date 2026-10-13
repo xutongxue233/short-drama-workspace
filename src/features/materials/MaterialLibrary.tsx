@@ -2,6 +2,7 @@ import { FolderOpen, HardDriveDownload, Images, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useProjectItems } from "../../components/hooks/useProjectItems";
 import type { Action } from "../../shared/contracts";
+import { projectPermissions } from "../../shared/project-members";
 import type { Material, Project } from "../../types";
 import { Button, EmptyState, IconButton, Select } from "../../ui";
 import { MaterialCard } from "./MaterialCard";
@@ -13,7 +14,7 @@ import {
 } from "./materialUtils";
 
 type LibraryProject = Pick<Project, "id" | "name" | "running"> &
-  Partial<Pick<Project, "materials" | "nodes">>;
+  Partial<Pick<Project, "materials" | "nodes" | "currentUserAccess">>;
 
 export function MaterialLibrary({
   projects,
@@ -69,7 +70,7 @@ export function MaterialLibrary({
           key={selectedProject.id}
           project={selectedProject}
           remote={remote}
-          busy={busy}
+          busy={busy || !projectPermissions(selectedProject).canEdit}
           onAction={onAction}
         />
       ) : (

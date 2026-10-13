@@ -131,7 +131,8 @@ export function SkillCenter({ state, mutate, notify }: SettingsProps) {
       <div className="skill-usage-note">
         <BookOpen size={20} aria-hidden="true" />
         <p>
-          在群聊输入 <code>$技能名称</code> 并写下任务即可调用。也可以在 Agent
+          在项目群聊切换为「仅讨论」，输入 <code>$技能名称</code>
+          并写下任务即可调用；也可用「调用技能」菜单自动切换。管理员可以在 Agent
           配置中绑定技能，供它在聊天与制作时使用。
         </p>
       </div>

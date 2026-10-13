@@ -2,6 +2,7 @@ import { Archive, ArrowRight, BookOpen, FileClock, Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import { TextContent } from "../../../components/TextContent";
 import { statusNames } from "../../../shared/labels";
+import { projectPermissions } from "../../../shared/project-members";
 import type { Project } from "../../../types";
 import {
   Badge,
@@ -42,7 +43,8 @@ export function EpisodeArchiveDialog({
   const viewed = selected ?? project;
   const viewedTitle = selected?.title ?? current?.title ?? `第 ${number} 集`;
   const done = viewed.nodes.filter((node) => node.status === "completed").length;
-  const canAdvance = canStartNextEpisode(project);
+  const { canEdit } = projectPermissions(project);
+  const canAdvance = canEdit && canStartNextEpisode(project);
   return (
     <Dialog
       title="剧集档案"
@@ -174,7 +176,13 @@ export function EpisodeArchiveDialog({
                 <p>
                   每集只导入当次需要改编的章节。验收本集全部节点后，可归档并开始下一集；已锁定角色、场景与项目素材继续保留。
                 </p>
-                {!canAdvance && <strong>本集尚有待处理事项，请先完成节点验收。</strong>}
+                {!canAdvance && (
+                  <strong>
+                    {canEdit
+                      ? "本集尚有待处理事项，请先完成节点验收。"
+                      : "只有项目所有者和编辑者可以开始下一集。"}
+                  </strong>
+                )}
               </div>
             )}
           </section>

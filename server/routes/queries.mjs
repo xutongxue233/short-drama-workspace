@@ -113,13 +113,20 @@ export function mountQueryRoutes(app, { store, getState, findProject, chat }) {
     if (projectId === "") throw new HttpError(400, "projectId 不能为空");
     const compact = enumQuery(req.query, "compact", ["0", "1"], "0") === "1";
     const history = enumQuery(req.query, "history", ["recent", "full"], "recent");
-    res.json(workspaceSnapshot(store, chat, { projectId, compact, history }));
+    res.json(
+      workspaceSnapshot(store, chat, {
+        projectId,
+        compact,
+        history,
+        user: req.auth.user,
+      }),
+    );
   });
   app.get("/api/projects/:id", (req, res) => {
     allowedQuery(req.query, []);
     const project = findProject(req.params.id);
     res.json({
-      ...publicProject(project, getState(), chat),
+      ...publicProject(project, getState(), chat, req.auth.user),
       counts: projectCounts(store, project),
       snapshot: { history: "full" },
     });

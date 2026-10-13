@@ -3,7 +3,12 @@ import { Avatar } from "../../../components/AgentAvatar";
 import { MemberAvatar, MemberKindBadge } from "../../../components/MemberIdentity";
 import { TextContent } from "../../../components/TextContent";
 import type { Action } from "../../../shared/contracts";
-import { memberById } from "../../../shared/project-members";
+import {
+  memberById,
+  messageMember,
+  projectMembers,
+  projectPermissions,
+} from "../../../shared/project-members";
 import type { Agent, Project, WorkflowNode } from "../../../types";
 import { Button } from "../../../ui";
 import { ApprovalCard } from "./ApprovalCard";
@@ -19,6 +24,7 @@ export function ChatHistory({
   onSource,
   historyRef,
   pendingAgentId,
+  currentUserId,
 }: {
   project: Project;
   agents: Agent[];
@@ -29,11 +35,16 @@ export function ChatHistory({
   onSource: () => void;
   historyRef: React.Ref<HTMLDivElement>;
   pendingAgentId?: string | null;
+  currentUserId?: string;
 }) {
+  const { canEdit } = projectPermissions(project);
   const done =
     project.nodes.length > 0 &&
     project.nodes.every((node) => node.status === "completed");
-  const mentions = [...agents, { id: "user", name: "你" }];
+  const mentions = [
+    ...projectMembers(project, agents),
+    { id: "legacy-user", name: "你", kind: "human" as const },
+  ];
   const messages = project.messagePage
     ? project.messages
     : project.messages.slice(project.currentEpisode?.startMessageIndex ?? 0);
@@ -59,15 +70,21 @@ export function ChatHistory({
         !project.running && (
           <div className="chat-empty">
             <h2>开始本集创作</h2>
-            <p>导入原文开始制作，也可以先在下方讨论。</p>
-            <Button variant="secondary" onClick={onSource}>
-              <BookOpen size={15} />
-              导入本集原文
-            </Button>
+            <p>
+              {canEdit
+                ? "导入原文开始制作，也可以先在下方讨论。"
+                : "这里会显示团队的讨论和创作记录。"}
+            </p>
+            {canEdit && (
+              <Button variant="secondary" onClick={onSource}>
+                <BookOpen size={15} />
+                导入本集原文
+              </Button>
+            )}
           </div>
         )}
       {messages.map((message) => {
-        const isUser = message.agentId === "user";
+        const isUser = Boolean(currentUserId && message.sender?.id === currentUserId);
         // Earlier versions saved chat failures as quiet system notices.
         const legacyFailure =
           message.type === "system" &&
@@ -77,7 +94,9 @@ export function ChatHistory({
         const agent = agents.find((a) =>
           legacyFailure ? a.name === legacyFailure[1] : a.id === message.agentId,
         );
-        const member = memberById(agent?.id || message.agentId, agents);
+        const member = legacyFailure
+          ? memberById(agent?.id || message.agentId, agents)
+          : messageMember(message, project, agents, currentUserId);
         if (message.type === "system" && !isFailure)
           return (
             <div
@@ -100,10 +119,13 @@ export function ChatHistory({
             <div className="message-main">
               <header>
                 <strong>{member?.name || "历史成员"}</strong>
+                {member?.isSelf && <span className="studio-member-self">我</span>}
                 {member && (
                   <>
                     <MemberKindBadge kind={member.kind} />
-                    <span className="message-member-role">{member.role}</span>
+                    {member.role && (
+                      <span className="message-member-role">{member.role}</span>
+                    )}
                   </>
                 )}
                 <time
@@ -179,13 +201,13 @@ export function ChatHistory({
         <ApprovalCard
           key={project.approval.id}
           project={project}
-          busy={busy}
+          busy={busy || !canEdit}
           onAction={onAction}
           agents={agents}
           onAssets={onAssets}
         />
       )}
-      {!!project.workflowIssues?.length && (
+      {canEdit && !!project.workflowIssues?.length && (
         <details className="workflow-readiness">
           <summary>
             <AlertCircle size={14} />
@@ -208,7 +230,7 @@ export function ChatHistory({
         <WorkflowStatusCard
           project={project}
           agents={agents}
-          busy={busy}
+          busy={busy || !canEdit}
           onAction={onAction}
         />
       )}

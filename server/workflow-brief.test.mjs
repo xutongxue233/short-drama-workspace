@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -292,6 +293,7 @@ test("approval HTTP routes reject malformed answers and pass valid selections in
   await service.workflow.jobs.get(current.id).promise;
   const approvalId = current.approval.id;
   const url = `http://127.0.0.1:${server.address().port}/api/projects/${current.id}/approval`;
+  const { fetch } = await authenticatedFetch(url);
   async function post(answers) {
     return fetch(url, {
       method: "POST",

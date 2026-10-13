@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import { TextContent } from "../../components/TextContent";
 import type { Action } from "../../shared/contracts";
+import { projectPermissions } from "../../shared/project-members";
 import type { Project } from "../../types";
 import { Button, IconButton } from "../../ui";
 
@@ -24,10 +25,11 @@ export function MemoryPanel({
 }) {
   const [fact, setFact] = useState("");
   const memory = project.memory;
+  const locked = busy || !projectPermissions(project).canEdit;
   const path = `/projects/${project.id}`;
   async function saveFact(event: React.FormEvent) {
     event.preventDefault();
-    if (!fact.trim() || busy) return;
+    if (!fact.trim() || locked) return;
     const draft = fact;
     const ok = await onAction(
       `${path}/memory/facts`,
@@ -46,7 +48,7 @@ export function MemoryPanel({
         </div>
         <Button
           variant="primary"
-          disabled={busy || project.running}
+          disabled={locked || project.running}
           onClick={() => void onAction(`${path}/memory/compress`, {}, "项目记忆已整理")}
         >
           <BrainCircuit size={15} />
@@ -116,12 +118,17 @@ export function MemoryPanel({
           <form className="fact-form" onSubmit={(event) => void saveFact(event)}>
             <input
               aria-label="添加项目事实"
+              disabled={locked}
               maxLength={1000}
               placeholder="添加一条需要始终遵循的事实…"
               value={fact}
               onChange={(e) => setFact(e.target.value)}
             />
-            <IconButton type="submit" label="保存事实" disabled={!fact.trim() || busy}>
+            <IconButton
+              type="submit"
+              label="保存事实"
+              disabled={!fact.trim() || locked}
+            >
               <Plus size={17} />
             </IconButton>
           </form>

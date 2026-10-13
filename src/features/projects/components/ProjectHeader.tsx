@@ -25,6 +25,7 @@ export function ProjectHeader({
   onToggleInspector,
   onInvite,
   onEpisodes,
+  currentUserId,
 }: {
   project: Project;
   agents: Agent[];
@@ -34,9 +35,10 @@ export function ProjectHeader({
   onToggleInspector: () => void;
   onInvite: () => void;
   onEpisodes: () => void;
+  currentUserId?: string;
 }) {
   const path = `/projects/${project.id}`;
-  const members = projectMembers(project, agents);
+  const members = projectMembers(project, agents, currentUserId);
   return (
     <section className="project-header">
       <div className="project-title-row">
@@ -65,7 +67,7 @@ export function ProjectHeader({
           <button
             className="project-members-button"
             onClick={onInvite}
-            aria-label={`查看群成员，${members.length} 人`}
+            aria-label={`查看群成员，${members.length} 位成员`}
             title={members.map((member) => member.name).join("、")}
           >
             <span className="project-member-faces" aria-hidden="true">

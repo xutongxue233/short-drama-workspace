@@ -10,6 +10,7 @@ import { readConfig } from "./config.mjs";
 import { createStore } from "./store.mjs";
 import { createProject, createSeedState } from "./seed.mjs";
 import { createLocalModel } from "./test-support/local-model.mjs";
+import { authenticatedFetch } from "./test-support/auth.mjs";
 
 const draft = {
   name: "声音顾问",
@@ -25,6 +26,7 @@ async function fixture(t, { seed = createSeedState } = {}) {
   let service;
   let server;
   let base;
+  let session;
   async function start() {
     const store = createStore({
       filename,
@@ -39,6 +41,7 @@ async function fixture(t, { seed = createSeedState } = {}) {
       const active = service.app.listen(0, "127.0.0.1", () => resolve(active));
     });
     base = `http://127.0.0.1:${server.address().port}/api`;
+    session = await authenticatedFetch(base);
   }
   async function stop() {
     service.close();
@@ -55,6 +58,9 @@ async function fixture(t, { seed = createSeedState } = {}) {
   return {
     model,
     filename,
+    get user() {
+      return session.user;
+    },
     get state() {
       return service.store.getState();
     },
@@ -65,7 +71,7 @@ async function fixture(t, { seed = createSeedState } = {}) {
       await start();
     },
     async api(path, method = "GET", body) {
-      const response = await fetch(`${base}${path}`, {
+      const response = await session.fetch(`${base}${path}`, {
         method,
         headers: { "Content-Type": "application/json" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -489,6 +495,7 @@ test(
       node.status = "completed";
       node.output = "已确认的测试产物";
     }
+    project.participants = [{ userId: fx.user.id, access: "owner" }];
     fx.state.projects.push(project);
     fx.save();
     assert.equal(
@@ -540,6 +547,7 @@ test(
       node.status = "completed";
       node.output = "已确认的测试产物";
     }
+    second.participants = [{ userId: fx.user.id, access: "owner" }];
     fx.state.projects.push(second);
     fx.save();
     assert.equal((await fx.api(`/projects/${second.id}/run`, "POST", {})).status, 202);
@@ -621,6 +629,7 @@ test("deletion protects historical and nested agent references independently of 
   const created = (await fx.api("/agents", "POST", draft)).body;
   const id = created.id;
   const project = createProject({ name: "历史创作档案" });
+  project.participants = [{ userId: fx.user.id, access: "owner" }];
   fx.state.projects.push(project);
   for (const patch of [
     { members: [id] },

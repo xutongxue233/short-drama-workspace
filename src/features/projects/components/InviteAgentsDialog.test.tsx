@@ -41,7 +41,7 @@ describe("project member roster", () => {
       { id: "user", kind: "human" },
       { id: "producer", kind: "agent" },
     ]);
-    expect(memberById("user", agents)?.name).toBe("我");
+    expect(memberById("user", agents)?.name).toBe("历史用户");
     expect(memberById("producer", agents)?.role).toBe("制作统筹");
     expect(memberById("missing", agents)).toBeUndefined();
   });
@@ -60,7 +60,7 @@ describe("project member roster", () => {
         onEpisodes={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "查看群成员，2 人" }));
+    fireEvent.click(screen.getByRole("button", { name: "查看群成员，2 位成员" }));
     expect(onInvite).toHaveBeenCalledOnce();
   });
 
@@ -80,10 +80,10 @@ describe("project member roster", () => {
     expect(within(joined).getAllByRole("listitem")).toHaveLength(2);
     expect(within(joined).queryByText("真人")).toBeNull();
     expect(within(joined).getByText("Agent")).toBeTruthy();
-    expect(screen.getByText("共 2 位成员 · 1 位 Agent")).toBeTruthy();
-    expect(screen.getByText("项目负责人")).toBeTruthy();
+    expect(screen.getByText("1 位用户 · 1 位 Agent")).toBeTruthy();
+    expect(screen.queryByText("项目负责人")).toBeNull();
     expect(screen.queryByText(/在线/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "查看 我 的工作记录" }));
+    fireEvent.click(screen.getByRole("button", { name: "查看 历史用户 的工作记录" }));
     expect(onActivity).toHaveBeenCalledWith("user");
     fireEvent.click(screen.getByRole("button", { name: "查看 总制片 的工作记录" }));
     expect(onActivity).toHaveBeenCalledWith("producer");
@@ -121,6 +121,102 @@ describe("project member roster", () => {
       />,
     );
     expect(screen.queryByRole("button", { name: "邀请 编剧 加入群聊" })).toBeNull();
-    expect(screen.getByText("共 3 位成员 · 2 位 Agent")).toBeTruthy();
+    expect(screen.getByText("1 位用户 · 2 位 Agent")).toBeTruthy();
   });
+});
+
+describe("project participant management", () => {
+  const participants: NonNullable<Project["participants"]> = [
+    {
+      userId: "owner",
+      username: "owner",
+      displayName: "小林",
+      kind: "human",
+      access: "owner",
+    },
+    {
+      userId: "editor",
+      username: "chen",
+      displayName: "陈老师",
+      kind: "human",
+      access: "editor",
+      jobTitle: "剪辑师",
+    },
+    {
+      userId: "bot",
+      username: "notify",
+      displayName: "通知助手",
+      kind: "bot",
+      access: "member",
+    },
+  ];
+  it("lets owners add an existing account with access independently from profession", async () => {
+    const onAction = vi.fn().mockResolvedValue(true);
+    render(
+      <InviteAgentsDialog
+        project={{ ...project, participants, currentUserAccess: "owner" }}
+        agents={agents}
+        busy={false}
+        onAction={onAction}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("用户名"), {
+      target: { value: "new.editor" },
+    });
+    fireEvent.change(screen.getByLabelText(/项目分工/), {
+      target: { value: "剪辑师" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "添加到群聊" }));
+    expect(onAction).toHaveBeenCalledWith(
+      "/projects/project/participants",
+      { username: "new.editor", access: "member", jobTitle: "剪辑师" },
+      "成员已加入群聊",
+      "POST",
+    );
+  });
+  it("lets owners edit permissions and explicitly confirm removing an account", async () => {
+    const onAction = vi.fn().mockResolvedValue(true);
+    render(
+      <InviteAgentsDialog
+        project={{ ...project, participants, currentUserAccess: "owner" }}
+        agents={agents}
+        busy={false}
+        onAction={onAction}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "移除 小林" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "修改 陈老师 的权限" }));
+    fireEvent.click(screen.getByRole("combobox", { name: "项目权限" }));
+    fireEvent.click(screen.getByRole("option", { name: "只读" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存成员设置" }));
+    expect(onAction).toHaveBeenCalledWith(
+      "/projects/project/participants/editor",
+      { access: "viewer", jobTitle: "剪辑师" },
+      "成员设置已保存",
+      "PATCH",
+    );
+  });
+  it.each(["editor", "member", "viewer"] as const)(
+    "does not give %s account management controls",
+    (access) => {
+      render(
+        <InviteAgentsDialog
+          project={{ ...project, participants, currentUserAccess: access }}
+          agents={agents}
+          busy={false}
+          onAction={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("陈老师")).toBeTruthy();
+      expect(screen.getByText("剪辑师")).toBeTruthy();
+      expect(screen.getByText("Bot")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "添加到群聊" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "修改 陈老师 的权限" })).toBeNull();
+      if (access !== "editor")
+        expect(screen.queryByRole("button", { name: "邀请 编剧 加入群聊" })).toBeNull();
+    },
+  );
 });

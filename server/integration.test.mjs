@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -34,6 +35,7 @@ async function fixture(
     const active = service.app.listen(0, "127.0.0.1", () => resolve(active));
   });
   const base = `http://127.0.0.1:${server.address().port}`;
+  const { fetch, headers: authHeaders } = await authenticatedFetch(base);
   t.after(async () => {
     service.workflow.close();
     service.materials.close();
@@ -126,6 +128,8 @@ async function fixture(
   return {
     ...service,
     base,
+    fetch,
+    authHeaders,
     api,
     project,
     idle,
@@ -457,7 +461,7 @@ test("local API rejects remote origins, rebinding hosts and unsafe body formats;
     ).status,
     415,
   );
-  const malformed = await fetch(`${fx.base}/api/projects`, {
+  const malformed = await fx.fetch(`${fx.base}/api/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: "{ invalid json",
@@ -1004,7 +1008,7 @@ test("live workflow and @messages integrate local text, character image and asyn
   assert.equal(imageMaterial.status, "local");
   assert.equal(imageMaterial.sourceUrl, `${upstreamUrl}/media/shen-lan.png`);
   assert.deepEqual(
-    Buffer.from(await (await fetch(`${fx.base}${character.url}`)).arrayBuffer()),
+    Buffer.from(await (await fx.fetch(`${fx.base}${character.url}`)).arrayBuffer()),
     png,
   );
   const video = project.assets.find((asset) => asset.type === "video");
@@ -1015,7 +1019,7 @@ test("live workflow and @messages integrate local text, character image and asyn
   assert.equal(videoMaterial.status, "local");
   assert.equal(videoMaterial.sourceUrl, `${upstreamUrl}/media/shot-one.mp4`);
   assert.deepEqual(
-    Buffer.from(await (await fetch(`${fx.base}${video.url}`)).arrayBuffer()),
+    Buffer.from(await (await fx.fetch(`${fx.base}${video.url}`)).arrayBuffer()),
     mp4,
   );
   assert.ok(video.tags.includes("真实接口"));

@@ -15,6 +15,7 @@ export function ChatPanel({
   onSource,
   onAssets,
   onNode,
+  currentUserId,
 }: {
   project: Project;
   agents: Agent[];
@@ -24,6 +25,7 @@ export function ChatPanel({
   onSource: () => void;
   onAssets: () => void;
   onNode: (node: WorkflowNode) => void;
+  currentUserId?: string;
 }) {
   const [autoFollow, setAutoFollow] = useState(true);
   const [replyingAgent, setReplyingAgent] = useState<string | null>(null);
@@ -152,6 +154,7 @@ export function ChatPanel({
           </div>
         )}
         <ChatHistory
+          currentUserId={currentUserId}
           project={{ ...project, messages: messageHistory.messages }}
           agents={agents}
           busy={busy}
@@ -169,6 +172,7 @@ export function ChatPanel({
         />
       </div>
       <ChatComposer
+        currentUserId={currentUserId}
         project={project}
         agents={agents}
         skills={skills}

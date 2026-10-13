@@ -9,7 +9,23 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, ProjectSummary, WorkspaceState } from "../types";
 import { useWorkspaceState } from "./useWorkspaceState";
-import App from "./App";
+import { WorkspaceApp } from "./App";
+
+const App = () => (
+  <WorkspaceApp
+    user={{
+      id: "admin",
+      username: "admin",
+      displayName: "管理员",
+      role: "admin",
+      kind: "human",
+      disabled: false,
+      createdAt: "",
+    }}
+    onLogout={vi.fn()}
+    onSessionChange={vi.fn()}
+  />
+);
 
 vi.mock("./useWorkspaceState");
 
@@ -27,6 +43,49 @@ describe("first project onboarding", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+
+  it("preserves the skills entry for administrators and removes global configuration after a role change", () => {
+    const state: WorkspaceState = {
+      currentUser: {
+        id: "admin",
+        username: "admin",
+        displayName: "管理员",
+        role: "admin",
+        kind: "human",
+        disabled: false,
+        createdAt: "",
+      },
+      projects: [],
+      agents: [],
+      providers: [],
+      skills: [],
+    };
+    vi.mocked(useWorkspaceState).mockReturnValue({
+      state,
+      error: "",
+      busy: false,
+      toast: null,
+      refresh: vi.fn(),
+      mutate: vi.fn(),
+      action: vi.fn(),
+      notify: vi.fn(),
+      dismissToast: vi.fn(),
+    });
+    const { rerender } = render(<App />);
+    for (const name of ["Agent 中心", "技能库", "模型接入"])
+      expect(screen.getByRole("button", { name })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "技能库" }));
+    expect(screen.getByRole("heading", { name: "技能库" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "创建技能" })).toBeTruthy();
+    state.currentUser = { ...state.currentUser!, role: "user" };
+    rerender(<App />);
+    for (const name of ["Agent 中心", "技能库", "模型接入"])
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "技能库" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "创建技能" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "开始你的第一部短剧" })).toBeTruthy();
+    expect(document.querySelector(".breadcrumb strong")?.textContent).toBe("项目群聊");
   });
 
   it("never imports source into the old project while the newly selected project is absent from a snapshot", async () => {
@@ -69,9 +128,7 @@ describe("first project onboarding", () => {
     fireEvent.click(screen.getByRole("button", { name: "创建项目群聊" }));
     await waitFor(() => expect(screen.getByText("所选项目暂未加载")).toBeTruthy());
     expect(screen.queryByRole("dialog", { name: "把故事交给创作团队" })).toBeNull();
-    await waitFor(() =>
-      expect(localStorage.getItem("yingxu-project")).toBe("new-project"),
-    );
+    await waitFor(() => expect(localStorage.getItem("yingxu-project")).toBeNull());
     expect(mutate).toHaveBeenCalledOnce();
   });
 
@@ -135,9 +192,7 @@ describe("first project onboarding", () => {
     expect(document.querySelector(".project-title p")?.textContent).toContain(
       "当前第 1 集",
     );
-    await waitFor(() =>
-      expect(localStorage.getItem("yingxu-project")).toBe("new-project"),
-    );
+    await waitFor(() => expect(localStorage.getItem("yingxu-project")).toBeNull());
   });
 
   it("selects a summary-only project and waits for its compact detail without showing the old project", () => {
@@ -220,7 +275,7 @@ describe("first project onboarding", () => {
     expect(screen.queryByText("旧项目的群聊内容")).toBeNull();
     expect(screen.queryByRole("heading", { name: "已有项目" })).toBeNull();
     expect(screen.queryByText("开始你的第一部短剧")).toBeNull();
-    expect(localStorage.getItem("yingxu-project")).toBe("next-project");
+    expect(localStorage.getItem("yingxu-project")).toBeNull();
     state.projects = [next];
     rerender(<App />);
     expect(screen.queryByText("正在加载项目…")).toBeNull();

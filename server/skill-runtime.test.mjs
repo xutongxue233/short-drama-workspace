@@ -4,6 +4,12 @@ import { createProject, createSeedState } from "./seed.mjs";
 import { createWorkflow } from "./workflow.mjs";
 import { createChatService } from "./services/chat.mjs";
 import { createLocalModel } from "./test-support/local-model.mjs";
+import { createApp } from "./app.mjs";
+import { authenticatedFetch } from "./test-support/auth.mjs";
+import { readConfig } from "./config.mjs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 function skill(id, overrides = {}) {
   return {
@@ -323,4 +329,124 @@ test("video generation ignores skill bindings and preserves the approved shot re
     (item) => item.event?.kind === "start" || item.event?.kind === "result",
   ))
     assert.equal(message.event.skills, undefined);
+});
+
+test("authenticated group chat never invokes skills for human or bot recipients and Agent calls require editors", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "frameflow-skill-auth-"));
+  const state = createSeedState();
+  const project = createProject({ name: "技能权限项目" });
+  state.projects = [project];
+  state.skills = [skill("dialogue")];
+  const model = await createLocalModel(t);
+  model.bind(state);
+  const service = createApp({
+    store: { getState: () => state, save() {}, close() {} },
+    config: readConfig({ WORKBENCH_DATA_DIR: directory }),
+  });
+  const server = await new Promise((resolve) => {
+    const active = service.app.listen(0, "127.0.0.1", () => resolve(active));
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  t.after(async () => {
+    await new Promise((resolve) => {
+      server.close(resolve);
+      server.closeAllConnections();
+    });
+    service.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+  const admin = await authenticatedFetch(base);
+  async function request(headers, path, body, method = "POST") {
+    const response = await fetch(`${base}/api${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    });
+    return { status: response.status, body: await response.json() };
+  }
+  async function account(username, kind) {
+    const created = await request(admin.headers, "/users", {
+      username,
+      kind,
+      displayName: kind === "bot" ? "剪辑机器人" : "普通用户",
+      password: "Runtime-password-2026",
+    });
+    assert.equal(created.status, 201);
+    assert.equal(
+      (
+        await request(admin.headers, `/projects/${project.id}/participants`, {
+          userId: created.body.id,
+          access: "member",
+        })
+      ).status,
+      201,
+    );
+    const response = await fetch(`${base}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password: "Runtime-password-2026" }),
+    });
+    const session = await response.json();
+    assert.equal(response.status, 200);
+    return {
+      user: session.user,
+      headers: {
+        Cookie: response.headers.get("set-cookie").split(";")[0],
+        "X-CSRF-Token": session.csrfToken,
+      },
+    };
+  }
+  const member = await account("member", "human");
+  const bot = await account("cutting-bot", "bot");
+  const path = `/projects/${project.id}/messages`;
+  for (const input of [
+    { content: "$dialogue 开始制作", agentId: null, skillIds: ["dialogue"] },
+    {
+      content: "@测试负责人 $missing",
+      agentId: null,
+      recipientUserId: admin.user.id,
+      skillIds: ["missing"],
+    },
+    { content: "@剪辑机器人 $dialogue", skillIds: ["dialogue"] },
+  ]) {
+    const posted = await request(member.headers, path, input);
+    assert.equal(posted.status, 201);
+    assert.equal(posted.body.sender.id, member.user.id);
+  }
+  assert.equal(model.requests.length, 0);
+  const before = project.messages.length;
+  for (const session of [member, bot])
+    for (const input of [
+      { content: "改写对白", agentId: "producer" },
+      { content: "@总制片 $dialogue 改写对白", skillIds: ["dialogue"] },
+      { content: "开始制作", agentId: "producer", skillIds: ["dialogue"] },
+    ])
+      assert.equal((await request(session.headers, path, input)).status, 403);
+  assert.equal(project.messages.length, before);
+  assert.equal(model.requests.length, 0);
+  assert.equal(
+    (
+      await request(
+        admin.headers,
+        `/projects/${project.id}/participants/${member.user.id}`,
+        { access: "editor" },
+        "PATCH",
+      )
+    ).status,
+    200,
+  );
+  const generated = await request(member.headers, path, {
+    content: "开始制作",
+    agentId: "producer",
+    skillIds: ["dialogue"],
+  });
+  assert.equal(generated.status, 201);
+  assert.equal(model.requests.length, 1);
+  assert.match(model.requests[0].prompt, /技能指令唯一标记【dialogue】/);
+  assert.equal(generated.body.sender.id, member.user.id);
+  assert.deepEqual(project.messages.at(-1).event.skills, [
+    { id: "dialogue", name: "dialogue", version: 1 },
+  ]);
+  assert.equal(project.running, false);
+  assert.ok(project.nodes.every((node) => node.status === "pending"));
 });

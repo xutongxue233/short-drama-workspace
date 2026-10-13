@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -59,6 +60,7 @@ async function fixture(t, { onGenerate } = {}) {
   const service = createApp({ store });
   const server = createServer(service.app);
   const base = await listen(server);
+  const { fetch } = await authenticatedFetch(base);
   t.after(async () => {
     service.close();
     await Promise.all([stop(server), stop(upstream)]);

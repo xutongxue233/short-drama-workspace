@@ -31,6 +31,7 @@ It runs on your computer with a React interface, a Node.js API, and SQLite stora
 - **Project-based asset and media libraries.** Browse with pagination and search, preview generated files, and retry a failed download without generating again.
 - **Bring your own model services.** Configure separate text, image, and video providers and bind them to editable agent roles.
 - **Reusable creative skills.** Maintain instructions in the skill library, import/export `SKILL.md`, call a skill with `$skill-name` in chat, or bind skills to agents for their text tasks. Responses retain the skill versions used.
+- **Multi-user collaboration.** Sign in with managed human or bot accounts, invite participants with project-scoped permissions, and keep optional job titles separate from access rights.
 - **Local persistence.** Save projects and settings in SQLite; download generated media into the workspace data directory.
 
 ## Quick start
@@ -50,11 +51,12 @@ Open **[http://127.0.0.1:5173](http://127.0.0.1:5173)**. The API listens on `127
 
 ### Create your first episode
 
-1. **Connect providers** in **模型接入**. Add a service, enter its API key when required, choose a model, and enable it. Text stages need a text provider; character images and video need their respective providers.
-2. **Assign agents** in **Agent 中心**. Bind each role to the appropriate service. Connection checks make read-only requests; they do not prove that every model is available to your account.
-3. **Create a project** and import this episode's source text by pasting it or uploading a UTF-8 TXT or Markdown file. You do not need the whole novel or a fixed episode count.
-4. **Start production** with **开始 / 继续制作**. Review the proposed scope, style, duration, and aspect ratio, then approve or request revisions as each stage finishes.
-5. **Keep and reuse the results.** Review the project asset and media libraries. After all stages are accepted, archive the episode and import the next excerpt.
+1. **Create the administrator account** on first launch, then use account management to create collaborator accounts. Existing projects belong to this first administrator.
+2. **Connect providers** in **模型接入**. Add a service, enter its API key when required, choose a model, and enable it. Text stages need a text provider; character images and video need their respective providers.
+3. **Assign agents** in **Agent 中心**. Bind each role to the appropriate service. Connection checks make read-only requests; they do not prove that every model is available to your account.
+4. **Create a project** and import this episode's source text by pasting it or uploading a UTF-8 TXT or Markdown file. You do not need the whole novel or a fixed episode count.
+5. **Start production** with **开始 / 继续制作**. Review the proposed scope, style, duration, and aspect ratio, then approve or request revisions as each stage finishes.
+6. **Keep and reuse the results.** Review the project asset and media libraries. After all stages are accepted, archive the episode and import the next excerpt.
 
 A fresh installation starts without sample projects or configured providers. The screenshot above is documentation-only example content.
 
@@ -115,16 +117,17 @@ By default, the workspace stores:
 
 ```text
 data/
-├── workbench.sqlite    # Projects, messages, assets, settings, and provider credentials
+├── workbench.sqlite    # Projects, accounts, sessions, and encrypted provider credentials
+├── workbench.sqlite.key # Encryption key; preserve with backups
 └── media/              # Downloaded generated images, videos, and audio
 ```
 
 - **Your workspace is local; generation requests leave it.** Relevant source text, prompts, project context, and reference media are sent to the model providers you configure.
-- **API keys are stored unencrypted in the local database.** The state API and project JSON exports omit provider keys. Keep the database, backups, and `.env` files private.
+- **Saved provider API keys are encrypted with AES-256-GCM.** The separate `workbench.sqlite.key` file is required to recover them. Passwords are hashed; session tokens and provider keys are omitted from public state and exports. Project text and media are not encrypted. Pre-upgrade databases, migration snapshots, and backups can still contain earlier plaintext keys; rotate those keys when upgrading and protect all backups.
 - **Back up the entire data directory while the app is stopped.** Project JSON exports contain media references, not the media files themselves. Unsaved temporary provider links can expire.
 - **Database upgrades preserve a migration snapshot.** Schema changes run in a transaction and roll back on failure. Back up before upgrading; migration snapshots are not an automatic downgrade mechanism.
 
-The API binds to the loopback address and rejects foreign web origins. This is a single-user local application without multi-user authentication or a supported public-server deployment mode.
+The API binds to the loopback address by default. Every project API, export, and media download requires authentication and project membership. Project owners manage participants; editors can run production; members can chat; viewers can read. Account administration and model configuration are separate administrator privileges. See [security and deployment](SECURITY.md) before enabling access from other computers.
 
 ## Current limitations
 

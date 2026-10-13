@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "./app.mjs";
@@ -87,6 +88,9 @@ async function fixture(t, { locked = true, structured = true } = {}) {
       server.closeAllConnections();
     });
   });
+  const { fetch } = await authenticatedFetch(
+    `http://127.0.0.1:${server.address().port}`,
+  );
   async function patch(body) {
     const response = await fetch(
       `http://127.0.0.1:${server.address().port}/api/projects/${project.id}/assets/${character.id}`,

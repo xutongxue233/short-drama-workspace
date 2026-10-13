@@ -196,3 +196,17 @@ describe("episode archive", () => {
     expect(snapshot.memory.summary).toBe("历史记忆");
   });
 });
+
+it.each(["member", "viewer"] as const)(
+  "keeps %s unable to archive or start another episode",
+  (access) => {
+    const { onCreate } = setup({ ...current, currentUserAccess: access });
+    const start = screen.getByRole("button", {
+      name: "开始下一集",
+    }) as HTMLButtonElement;
+    expect(start.disabled).toBe(true);
+    fireEvent.click(start);
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(screen.getByText("只有项目所有者和编辑者可以开始下一集。")).toBeTruthy();
+  },
+);

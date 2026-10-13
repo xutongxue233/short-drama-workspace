@@ -10,10 +10,10 @@ import {
   Plus,
 } from "lucide-react";
 import { Avatar } from "../../../components/AgentAvatar";
-import { MemberIdentity } from "../../../components/MemberIdentity";
+import { MemberAccessBadge, MemberIdentity } from "../../../components/MemberIdentity";
 import type { Tab } from "../../../shared/contracts";
 import { statusNames } from "../../../shared/labels";
-import { projectMembers } from "../../../shared/project-members";
+import { projectMembers, projectPermissions } from "../../../shared/project-members";
 import { failureSummary } from "../../../shared/workflow-failure";
 import type { Agent, Project, WorkflowNode } from "../../../types";
 import { Badge, IconButton } from "../../../ui";
@@ -33,6 +33,7 @@ export function ProjectInspector({
   onInvite,
   onActivity,
   onEpisodes,
+  currentUserId,
 }: {
   project: Project;
   agents: Agent[];
@@ -41,13 +42,15 @@ export function ProjectInspector({
   onInvite: () => void;
   onActivity?: (agentId?: string, nodeId?: string) => void;
   onEpisodes?: () => void;
+  currentUserId?: string;
 }) {
   const totals = projectTotals(project);
   const { completed, finished, current, handoff, state } = workflowOverview(project);
   const owner = agents.find((agent) => agent.id === current?.agentId);
   const nextOwner = agents.find((agent) => agent.id === handoff?.agentId);
   const title = episodeTitle(project);
-  const members = projectMembers(project, agents);
+  const members = projectMembers(project, agents, currentUserId);
+  const { canEdit } = projectPermissions(project);
   return (
     <aside className="inspector" id="project-inspector" aria-label="项目与本集制作概览">
       <div className="inspector-heading">
@@ -110,7 +113,7 @@ export function ProjectInspector({
                       : "neutral"
               }
             >
-              {state}
+              {!canEdit && state === "待你确认" ? "待团队确认" : state}
             </Badge>
           </div>
           <strong>
@@ -155,7 +158,13 @@ export function ProjectInspector({
                 project.approval ? onTabChange("chat") : current && onNode(current)
               }
             >
-              {project.approval ? "前往群聊确认" : "查看问题与重试"}
+              {project.approval
+                ? canEdit
+                  ? "前往群聊确认"
+                  : "查看待确认事项"
+                : canEdit
+                  ? "查看问题与重试"
+                  : "查看问题"}
               <ChevronRight size={12} />
             </button>
           )}
@@ -203,8 +212,8 @@ export function ProjectInspector({
       <div className="inspector-section-title">
         <h4>群成员</h4>
         <span>
-          {members.length} 人
-          <IconButton size="sm" label="管理群成员" onClick={onInvite}>
+          {members.length} 位成员
+          <IconButton size="sm" label="查看群成员" onClick={onInvite}>
             <Plus size={15} />
           </IconButton>
         </span>
@@ -220,12 +229,13 @@ export function ProjectInspector({
         {members.map((member) => {
           const workState = member.agent
             ? agentWorkState(project, member.agent)
-            : project.approval
+            : project.approval && ["owner", "editor"].includes(member.access || "")
               ? "待确认"
               : "";
           const details = (
             <>
               <MemberIdentity member={member} size="small" />
+              <MemberAccessBadge member={member} />
               {workState && (
                 <span
                   className={`member-status ${["创作中", "回复中"].includes(workState) ? "working" : workState === "需处理" ? "attention" : ""}`}

@@ -1,10 +1,13 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { request } from "../api";
+import { ApiError, request } from "../api";
 import type { WorkspaceState } from "../types";
 import { useWorkspaceState } from "./useWorkspaceState";
 
-vi.mock("../api", () => ({ request: vi.fn() }));
+vi.mock("../api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api")>()),
+  request: vi.fn(),
+}));
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -26,6 +29,44 @@ afterEach(() => {
 });
 
 describe("workspace state lifecycle", () => {
+  it("discards the previous snapshot when project access is revoked", async () => {
+    vi.mocked(request)
+      .mockResolvedValueOnce(snapshot())
+      .mockRejectedValue(new ApiError("项目权限已撤回", 403));
+    const { result } = renderHook(useWorkspaceState);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.state).not.toBeNull();
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.state).toBeNull();
+    expect(result.current.error).toBe("项目权限已撤回");
+  });
+
+  it("releases a committed mutation waiting for refresh if its access is revoked", async () => {
+    let reads = 0;
+    vi.mocked(request).mockImplementation((path) =>
+      path === "/state"
+        ? ++reads === 1
+          ? Promise.resolve(snapshot())
+          : Promise.reject(new ApiError("项目权限已撤回", 403))
+        : Promise.resolve({}),
+    );
+    const { result } = renderHook(useWorkspaceState);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      expect(
+        await result.current.action("/projects/demo/messages", { content: "消息" }),
+      ).toBe(false);
+    });
+    expect(result.current.state).toBeNull();
+    expect(result.current.busy).toBe(false);
+  });
+
   it("requests only the selected project and ignores a late response after switching", async () => {
     const older = deferred<WorkspaceState>();
     const newer = deferred<WorkspaceState>();

@@ -10,10 +10,12 @@ import {
 import { remember, addMessage, compressMemory } from "../workflow/memory.mjs";
 import { beginNextEpisode } from "../services/episodes.mjs";
 import { workflowEvent } from "../workflow/events.mjs";
+import { publicAgent } from "../auth/authorization.mjs";
+import { publicProject } from "../services/workspace-snapshot.mjs";
 
 export function mountProjectsRoutes(
   app,
-  { getState, save, findProject, workflow, chat },
+  { getState, save, findProject, workflow, chat, auth },
 ) {
   app.post(
     "/api/projects",
@@ -37,9 +39,11 @@ export function mountProjectsRoutes(
             ? "待确认"
             : textInput(input.style, "视觉风格", { max: 80 }),
       });
+      project.participants = [{ userId: req.auth.user.id, access: "owner" }];
       getState().projects.unshift(project);
+      auth.audit("project.created", req.auth.user, project.id);
       save();
-      res.status(201).json(project);
+      res.status(201).json(publicProject(project, getState(), chat, req.auth.user));
     }),
   );
 
@@ -167,12 +171,17 @@ export function mountProjectsRoutes(
         throw new HttpError(400, "当前一集原文总量最多 200 万字。");
       project.chapters.push(chapter);
       workflow.invalidateFrom(project, 0);
-      addMessage(
+      const imported = addMessage(
         project,
         "user",
         `导入小说「${chapter.title}」，共 ${chapter.content.length} 字。`,
         "text",
       );
+      imported.sender = {
+        id: req.auth.user.id,
+        displayName: req.auth.user.displayName,
+        kind: req.auth.user.kind,
+      };
       addMessage(
         project,
         "producer",
@@ -191,11 +200,12 @@ export function mountProjectsRoutes(
       format: "frameflow-project-v1",
       exportedAt: now(),
       note: "本包包含当前集、历集只读档案、原文、聊天、工作流、审批、记忆、资产引用与素材索引，不包含 API 密钥或媒体文件。已下载媒体保存在工作台数据目录的 media 子目录，完整备份需同时保留数据库与该目录；仅有远程地址的素材仍可能失效。历史文字提案不代表已生成媒体。",
-      project,
+      project: publicProject(project, getState(), chat, req.auth.user),
       agents: getState()
         .agents.filter((agent) => project.members.includes(agent.id))
-        .map(({ providerId: _providerId, model: _model, ...agent }) => agent),
+        .map((agent) => publicAgent(agent)),
     };
+    auth.mutate(() => auth.audit("project.exported", req.auth.user, project.id));
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="project-${project.id}.json"; filename*=UTF-8''${encodeURIComponent(project.name)}.json`,

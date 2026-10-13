@@ -820,3 +820,32 @@ describe("MaterialLibrary", () => {
     expect(within(references).queryByText("老道士")).toBeNull();
   });
 });
+
+it("updates material write permissions when changing the selected project", () => {
+  const onAction = vi.fn().mockResolvedValue(true);
+  render(
+    <MaterialLibrary
+      projects={[
+        {
+          ...project("p1", [material({ status: "remote" })]),
+          currentUserAccess: "viewer",
+        },
+        { ...project("p2", []), currentUserAccess: "editor" },
+      ]}
+      busy={false}
+      onAction={onAction}
+    />,
+  );
+  const importButton = screen.getByRole("button", {
+    name: "补存历史素材",
+  }) as HTMLButtonElement;
+  expect(importButton.disabled).toBe(true);
+  fireEvent.click(importButton);
+  expect(onAction).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("combobox", { name: "素材所属项目" }));
+  fireEvent.click(screen.getByRole("option", { name: "另一个故事" }));
+  expect(
+    (screen.getByRole("button", { name: "补存历史素材" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+});

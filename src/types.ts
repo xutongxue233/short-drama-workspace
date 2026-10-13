@@ -1,4 +1,22 @@
 export type NodeStatus = "pending" | "running" | "waiting" | "completed" | "failed";
+export interface PublicUser {
+  id: string;
+  username: string;
+  displayName: string;
+  kind: "human" | "bot";
+  role: "admin" | "user";
+  disabled: boolean;
+  createdAt: string;
+}
+export type ProjectAccess = "owner" | "editor" | "member" | "viewer";
+export interface ProjectParticipant {
+  userId: string;
+  username: string;
+  displayName: string;
+  kind: "human" | "bot";
+  access: ProjectAccess;
+  jobTitle?: string;
+}
 export interface Agent {
   id: string;
   name: string;
@@ -35,6 +53,8 @@ export interface Provider {
 export interface Message {
   id: string;
   agentId: string;
+  sender?: Pick<PublicUser, "id" | "displayName" | "kind">;
+  recipientUserId?: string;
   content: string;
   createdAt: string;
   type: "text" | "system" | "result" | "approval" | "error";
@@ -229,6 +249,8 @@ export interface Project {
   currentEpisode?: CurrentEpisode;
   episodeArchive?: EpisodeArchive[];
   members: string[];
+  participants?: ProjectParticipant[];
+  currentUserAccess?: ProjectAccess;
   messages: Message[];
   nodes: WorkflowNode[];
   assets: Asset[];
@@ -249,6 +271,7 @@ export interface Project {
 }
 export interface WorkspaceState {
   skills?: Skill[];
+  currentUser?: PublicUser;
   projects: Project[];
   projectSummaries?: ProjectSummary[];
   agents: Agent[];
@@ -271,6 +294,8 @@ export type ProjectSummary = Pick<
   | "createdAt"
   | "updatedAt"
   | "members"
+  | "participants"
+  | "currentUserAccess"
   | "running"
   | "approval"
   | "backgroundTask"

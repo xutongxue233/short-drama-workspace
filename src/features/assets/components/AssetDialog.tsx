@@ -75,7 +75,7 @@ export function AssetDialog({
               <Pause size={15} />
               {item.tags.includes("历史版本")
                 ? "这是历史版本，保留用于追溯。请在资产库中打开最新版本进行修改。"
-                : "项目正在制作，暂停后可修改资产设定。"}
+                : "当前资产仅可查看；拥有编辑权限且项目暂停制作后可修改。"}
             </p>
           )}
           <Field htmlFor="studio-field-8" label="资产名称">

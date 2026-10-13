@@ -53,3 +53,28 @@ describe("chat mention parsing", () => {
     ).toBeNull();
   });
 });
+
+describe("human and bot mentions", () => {
+  it("returns user targets separately from model targets", () => {
+    const parts = splitMentions("@小林 @通知助手 @编剧", [
+      ...agents,
+      { id: "lin", name: "小林", kind: "human" },
+      { id: "notify", name: "通知助手", kind: "bot" },
+    ]);
+    expect(parts.filter((part) => part.userId)).toEqual([
+      { text: "@小林", userId: "lin" },
+      { text: "@通知助手", userId: "notify" },
+    ]);
+    expect(parts.filter((part) => part.agentId)).toEqual([
+      { text: "@编剧", agentId: "writer" },
+    ]);
+  });
+  it("does not dispatch duplicate display names to an AI", () => {
+    expect(
+      splitMentions("@编剧 请确认", [
+        ...agents,
+        { id: "human-writer", name: "编剧", kind: "human" },
+      ]),
+    ).toEqual([{ text: "@编剧", ambiguous: true }, { text: " 请确认" }]);
+  });
+});

@@ -5,6 +5,7 @@ import { generate } from "../providers/generate.mjs";
 import { discoverModels, modelListInput } from "../providers/models.mjs";
 import { bodyObject, textInput } from "../http/validation.mjs";
 import { HttpError } from "../http/errors.mjs";
+import { assertProjectAccess } from "../auth/authorization.mjs";
 import { characterImageTestInput } from "../services/character-image-test.mjs";
 import { beginProjectTask } from "../services/project-tasks.mjs";
 
@@ -150,6 +151,7 @@ export function mountProviderRoutes(
     const model = textInput(input.model, "测试模型", { max: 200, required: true });
     const provider = find(req.params.id);
     const project = findProject(projectId);
+    assertProjectAccess(project, req.auth.user, "editor");
     if (provider.kind !== "image")
       throw new ProviderError("生图测试仅支持图片模型接口。", 400);
     if (closed) throw new ProviderError("本地服务正在关闭。", 503);

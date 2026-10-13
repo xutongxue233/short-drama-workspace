@@ -315,9 +315,13 @@ test("failed multi-entity save rolls back fully and the same pending changes suc
     JSON.parse(
       db.prepare("SELECT value FROM providers WHERE id=?").get(state.providers[0].id)
         .value,
-    ).apiKey,
-    "new-synthetic-key",
+    ).apiKey.cipher,
+    "aes-256-gcm-v1",
   );
+  store.close();
+  const reopened = createStore({ filename });
+  cleanupResources.get(t).push(reopened);
+  assert.equal(reopened.getState().providers[0].apiKey, "new-synthetic-key");
 });
 
 test("query pages isolate projects, filter before paging, and keep absolute current-episode message cursors", (t) => {

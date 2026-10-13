@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -102,6 +103,9 @@ async function fixture(t, { synthetic = false } = {}) {
     });
     rmSync(dataDir, { force: true, recursive: true });
   });
+  const { fetch } = await authenticatedFetch(
+    `http://127.0.0.1:${server.address().port}`,
+  );
   const api = async (path) => {
     const response = await fetch(
       `http://127.0.0.1:${server.address().port}/api${path}`,
