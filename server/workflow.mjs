@@ -39,6 +39,7 @@ import { createApproval, TASKS, OUTPUT_GUIDELINES } from "./workflow/templates.m
 import { workflowEvent, approvalEvent, recordNodeStart } from "./workflow/events.mjs";
 import { projectTask } from "./services/project-tasks.mjs";
 import { snapshotState, stateTransaction } from "./state-transaction.mjs";
+import { resolveSkills, formatSkillInstructions, skillUsage } from "./skills.mjs";
 export { HttpError } from "./http/errors.mjs";
 export {
   addMessage,
@@ -122,9 +123,13 @@ export function createWorkflow({ getState, save, materials }) {
       throw new Error(
         "角色定妆需要编剧绑定一个启用的文本接口，用于从原著提取角色设定。",
       );
+    const skills = resolveSkills(getState(), {
+      skillIds: [...new Set([...(agent.skillIds || []), ...(planner.skillIds || [])])],
+    });
     return {
       planner,
       textProvider,
+      skills,
       key: characterCheckpointKey(
         project,
         agent,
@@ -132,6 +137,7 @@ export function createWorkflow({ getState, save, materials }) {
         planner,
         textProvider,
         TASKS.characters,
+        skills,
       ),
     };
   }
@@ -276,14 +282,18 @@ export function createWorkflow({ getState, save, materials }) {
     const context = buildContext(project);
     const prompt = `${context.prompt}\n\n当前任务：${TASKS[node.id]}${node.id === "delivery" ? `\n\n${buildMediaInventory(project)}\n\n${buildDeliveryStoryboard(project)}` : ""}`;
     if (node.id === "characters") {
-      const { planner, textProvider, key } = characterSetup(project, agent, provider);
+      const { planner, textProvider, key, skills } = characterSetup(
+        project,
+        agent,
+        provider,
+      );
       if (node.characterGeneration?.key !== key) {
         let plan;
         let correction;
         for (let attempt = 0; attempt <= CHARACTER_PLANNING_REPAIRS; attempt++) {
           const planning = await generate({
             onDispatch() {
-              onStart();
+              onStart(true, skills);
               addMessage(
                 project,
                 planner.id,
@@ -294,6 +304,7 @@ export function createWorkflow({ getState, save, materials }) {
                   phase: "character-planning",
                   fromAgentId: planner.id,
                   toAgentId: agent.id,
+                  ...(skills.length ? { skills: skillUsage(skills) } : {}),
                 }),
               );
               save();
@@ -303,7 +314,7 @@ export function createWorkflow({ getState, save, materials }) {
             model: planner.model || textProvider.model,
             system: planner.systemPrompt,
             signal,
-            prompt: buildCharacterPlanningPrompt(project, correction),
+            prompt: `${buildCharacterPlanningPrompt(project, correction)}${skills.length ? `\n\n${formatSkillInstructions(skills)}` : ""}`,
           });
           signal.throwIfAborted();
           try {
@@ -325,6 +336,7 @@ export function createWorkflow({ getState, save, materials }) {
                 phase: "character-plan-ready",
                 fromAgentId: planner.id,
                 toAgentId: agent.id,
+                ...(skills.length ? { skills: skillUsage(skills) } : {}),
               }),
             );
             save();
@@ -396,6 +408,7 @@ export function createWorkflow({ getState, save, materials }) {
           planningVersion: CHARACTER_PLANNING_VERSION,
           outputKind: provider.kind,
           plan,
+          ...(skills.length ? { skills: skillUsage(skills) } : {}),
           ...(pilot ? { stage: "pilot", pilotName: pilot.name } : {}),
         };
         save();
@@ -493,7 +506,7 @@ export function createWorkflow({ getState, save, materials }) {
           try {
             result = await generate({
               onDispatch() {
-                onStart();
+                onStart(true, skills);
                 addMessage(
                   project,
                   agent.id,
@@ -579,20 +592,22 @@ export function createWorkflow({ getState, save, materials }) {
         save();
         characters.push(generated);
       }
-      onStart(false);
+      onStart(false, skills);
       return {
         text: `## ${checkpoint.stage === "pilot" ? "基础角色样板 · 待目视确认" : `角色${provider.kind === "image" ? "基础图" : "文字设定"}`}\n\n${checkpoint.stage === "pilot" ? `本集已规划 **${checkpoint.plan.length} 个主体**，先生成「${checkpoint.pilotName}」样板。请检查是否符合统一画风、面部和服装是否清楚。确认后再继续其余角色，当前仅为待审核的设计提案。` : `已整理 **${characters.length} 项角色资产**。请逐一核对身份、五官、完整身形与服装；基础图确认后再按镜头补充状态与视角。`}\n\n${characters.map((character) => `### ${character.name}\n\n${character.content}`).join("\n\n")}${provider.kind === "text" ? "\n\n> 当前角色 Agent 绑定文字接口，只生成了文字卡片；需要图片时请绑定图片接口。" : ""}`,
         characters,
         charactersStored: true,
+        ...(checkpoint.skills?.length ? { skills: skillUsage(checkpoint.skills) } : {}),
       };
     }
     const videoRequest =
       provider.kind === "video" ? buildVideoShotRequest(project, { shotId }) : null;
+    const skills = provider.kind === "text" ? resolveSkills(getState(), agent) : [];
     const generationPrompt = videoRequest
       ? videoRequest.prompt
       : provider.kind === "image" && node.id === "storyboard"
         ? buildStoryboardImagePrompt(project)
-        : prompt;
+        : `${prompt}${skills.length ? `\n\n${formatSkillInstructions(skills)}` : ""}`;
     const generationReferences = videoRequest
       ? videoRequest.references
       : provider.kind === "image"
@@ -625,7 +640,7 @@ export function createWorkflow({ getState, save, materials }) {
         `已有视频任务 ${priorTask.taskId}（镜头 ${priorTask.shotId} / ${priorTask.model}）尚未取回。当前模型、分镜或参考资料已变化，已阻止重新提交以免重复计费；可恢复原配置取回任务，或在节点详情中明确归档并放弃取回旧任务后再制作新版本。归档不会取消供应商任务。`,
       );
     let result = await generate({
-      onDispatch: onStart,
+      onDispatch: () => onStart(true, skills),
       provider,
       prompt: generationPrompt,
       system:
@@ -693,6 +708,7 @@ export function createWorkflow({ getState, save, materials }) {
     }
     return {
       ...result,
+      ...(skills.length ? { skills: skillUsage(skills) } : {}),
       text:
         result.text ||
         (provider.kind === "video"
@@ -723,13 +739,19 @@ export function createWorkflow({ getState, save, materials }) {
           project,
           node,
           controller.signal,
-          (usesModel = true) => {
+          (usesModel = true, skills = []) => {
             if (job.current.started) return;
             controller.signal.throwIfAborted();
             if (jobs.get(project.id) !== job) throw new Error("本次节点执行已结束。");
             job.current.started = true;
             node.startedAt = now();
-            recordNodeStart(project, node, job.current.runId, usesModel);
+            const started = recordNodeStart(
+              project,
+              node,
+              job.current.runId,
+              usesModel,
+            );
+            if (skills.length) started.event.skills = skillUsage(skills);
             if (node.id === "video")
               addMessage(
                 project,
@@ -757,7 +779,10 @@ export function createWorkflow({ getState, save, materials }) {
           node.output,
           "result",
           node.id,
-          workflowEvent(project, node, "result", { runId: job.current.runId }),
+          workflowEvent(project, node, "result", {
+            runId: job.current.runId,
+            ...(result.skills?.length ? { skills: result.skills } : {}),
+          }),
         );
         project.approval = createApproval(project, node);
         if (project.approval) {
@@ -1080,7 +1105,7 @@ export function createWorkflow({ getState, save, materials }) {
       if (characterSetup(project, agent, provider).key !== checkpoint.key)
         throw new HttpError(
           409,
-          "样板的创作依据或模型配置已变化，请修改样板并重新生成后确认。",
+          "样板的创作依据、技能或模型配置已变化，请修改样板并重新生成后确认。",
         );
       checkpoint.stage = "batch";
       pilot.tags = [...new Set([...pilot.tags, "样板已确认"])];
@@ -1127,7 +1152,7 @@ export function createWorkflow({ getState, save, materials }) {
       if (characterSetup(project, agent, provider).key !== checkpoint.key)
         throw new HttpError(
           409,
-          "角色的创作依据或模型配置已变化，请重新生成并审核本轮角色。",
+          "角色的创作依据、技能或模型配置已变化，请重新生成并审核本轮角色。",
         );
       // Validate the entire plan before remembering feedback, locking assets,
       // archiving standards, or advancing any downstream node.
@@ -1272,7 +1297,13 @@ export function createWorkflow({ getState, save, materials }) {
               }
             : planned,
         );
-        checkpoint.key = characterSetup(project, agent, provider).key;
+        const setup = characterSetup(project, agent, provider);
+        // Manual copy edits do not retroactively apply a revised skill to a plan.
+        if (
+          JSON.stringify(checkpoint.skills || []) ===
+          JSON.stringify(skillUsage(setup.skills))
+        )
+          checkpoint.key = setup.key;
       }
     }
     owner.output =

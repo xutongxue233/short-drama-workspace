@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Action } from "../../../shared/contracts";
-import type { Agent, Project, WorkflowNode } from "../../../types";
+import type { Agent, Project, Skill, WorkflowNode } from "../../../types";
 import { ChatComposer } from "./ChatComposer";
 import { ChatHistory } from "./ChatHistory";
 import { Button } from "../../../ui";
@@ -9,6 +9,7 @@ import { useMessageHistory } from "../useMessageHistory";
 export function ChatPanel({
   project,
   agents,
+  skills = [],
   busy,
   onAction,
   onSource,
@@ -17,6 +18,7 @@ export function ChatPanel({
 }: {
   project: Project;
   agents: Agent[];
+  skills?: Skill[];
   busy: boolean;
   onAction: Action;
   onSource: () => void;
@@ -169,6 +171,7 @@ export function ChatPanel({
       <ChatComposer
         project={project}
         agents={agents}
+        skills={skills}
         busy={busy || Boolean(project.chatPending)}
         onAction={onAction}
         onSource={onSource}

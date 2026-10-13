@@ -15,7 +15,7 @@ export function mountAgentsRoutes(app, { getState, save }) {
       const state = getState();
       const agent = {
         id: uid("agent"),
-        ...agentInput(bodyObject(req), state.providers, { creating: true }),
+        ...agentInput(bodyObject(req), state, { creating: true }),
       };
       assertAgentNameAvailable(agent.name, state.agents);
       state.agents.push(agent);
@@ -29,7 +29,7 @@ export function mountAgentsRoutes(app, { getState, save }) {
     transactionalRoute(getState, (req, res) => {
       const agent = getState().agents.find((item) => item.id === req.params.id);
       if (!agent) throw new HttpError(404, "Agent 不存在");
-      const patch = agentInput(bodyObject(req), getState().providers, {
+      const patch = agentInput(bodyObject(req), getState(), {
         existing: agent,
       });
       assertAgentNameAvailable(patch.name, getState().agents, agent);

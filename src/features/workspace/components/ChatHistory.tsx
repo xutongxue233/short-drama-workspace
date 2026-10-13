@@ -126,6 +126,15 @@ export function ChatHistory({
                   </div>
                 )}
                 <TextContent text={message.content} mentions={mentions} />
+                {!!message.event?.skills?.length && (
+                  <ul className="message-skills" aria-label="本次使用的技能">
+                    {message.event.skills.map((skill) => (
+                      <li key={skill.id}>
+                        ${skill.name} <span>v{skill.version}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {legacyFailure && (
                   <p className="reply-error-help">
                     请在模型接入中检查服务状态，并在 Agent

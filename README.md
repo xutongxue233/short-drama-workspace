@@ -30,6 +30,7 @@ It runs on your computer with a React interface, a Node.js API, and SQLite stora
 - **Traceable creative work.** Inspect agent activity, handoffs, failures, approval history, and versioned assets. Redo a stage when its inputs change.
 - **Project-based asset and media libraries.** Browse with pagination and search, preview generated files, and retry a failed download without generating again.
 - **Bring your own model services.** Configure separate text, image, and video providers and bind them to editable agent roles.
+- **Reusable creative skills.** Maintain instructions in the skill library, import/export `SKILL.md`, call a skill with `$skill-name` in chat, or bind skills to agents for their text tasks. Responses retain the skill versions used.
 - **Local persistence.** Save projects and settings in SQLite; download generated media into the workspace data directory.
 
 ## Quick start

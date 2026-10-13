@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import type { Agent, WorkspaceState } from "../../types";
+import type { Agent, Skill, WorkspaceState } from "../../types";
 import { AgentCenter } from "./AgentCenter";
 
 it("waits for a toggle snapshot before opening an editor that could overwrite enabled", async () => {
@@ -63,12 +63,24 @@ const writer: Agent = {
   model: "story-v1",
   color: "#7160cf",
   enabled: true,
+  skillIds: ["review"],
 };
 const custom: Agent = { ...writer, id: "agent-dialogue", name: "对白顾问" };
+const reviewSkill: Skill = {
+  id: "review",
+  name: "review",
+  description: "审阅剧本",
+  instructions: "检查故事连续性。",
+  enabled: true,
+  version: 1,
+  createdAt: "2026-10-13",
+  updatedAt: "2026-10-13",
+};
 const workspace = (agents = [writer, custom]): WorkspaceState => ({
   projects: [],
   providers: [],
   agents,
+  skills: [reviewSkill],
 });
 const enter = (name: string | RegExp, value: string) =>
   fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } });
@@ -90,6 +102,7 @@ it("creates an Agent from the visible entry with trimmed fields and chosen color
   enter("工作职责", "  动作设计  ");
   enter(/职责说明/, "  保持动作连续性  ");
   enter("系统提示词", "  根据剧本设计动作节奏。  ");
+  fireEvent.click(screen.getByRole("checkbox", { name: "绑定 review" }));
   fireEvent.click(screen.getByRole("button", { name: "绿色" }));
   fireEvent.click(save);
   await waitFor(() =>
@@ -104,6 +117,7 @@ it("creates an Agent from the visible entry with trimmed fields and chosen color
         enabled: true,
         providerId: "",
         model: "",
+        skillIds: ["review"],
       },
       "POST",
     ),
@@ -132,6 +146,9 @@ it("copies existing configuration into a new uniquely named Agent without patchi
     (screen.getByRole("textbox", { name: "系统提示词" }) as HTMLTextAreaElement).value,
   ).toBe(writer.systemPrompt);
   expect(mutate).not.toHaveBeenCalled();
+  expect(
+    (screen.getByRole("checkbox", { name: "绑定 review" }) as HTMLInputElement).checked,
+  ).toBe(true);
   enter("工作职责", "独立改编顾问");
   fireEvent.click(screen.getByRole("button", { name: "创建 Agent" }));
   await waitFor(() =>
@@ -146,6 +163,7 @@ it("copies existing configuration into a new uniquely named Agent without patchi
         enabled: true,
         providerId: "",
         model: writer.model,
+        skillIds: ["review"],
       },
       "POST",
     ),

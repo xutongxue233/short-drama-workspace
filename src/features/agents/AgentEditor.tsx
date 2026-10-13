@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
 import { Check, ShieldCheck } from "lucide-react";
-import { type Agent, type Mutate, type Provider } from "../../types";
+import { type Agent, type Mutate, type Provider, type Skill } from "../../types";
 import {
   Button,
   Dialog,
@@ -22,6 +22,7 @@ export function AgentEditor({
   copyFrom,
   agents = [],
   providers,
+  skills = [],
   onClose,
   onSaved,
   mutate,
@@ -31,6 +32,7 @@ export function AgentEditor({
   copyFrom?: Agent;
   agents?: Agent[];
   providers: Provider[];
+  skills?: Skill[];
   onClose: () => void;
   onSaved?: () => void;
   mutate: Mutate;
@@ -49,6 +51,9 @@ export function AgentEditor({
   const [providerId, setProviderId] = useState(source.providerId);
   const [model, setModel] = useState(source.model);
   const [enabled, setEnabled] = useState(source.enabled);
+  const [skillIds, setSkillIds] = useState(source.skillIds ?? []);
+  const skillBindingsChanged =
+    JSON.stringify(skillIds) !== JSON.stringify(source.skillIds ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const provider = providers.find((item) => item.id === providerId);
@@ -66,14 +71,16 @@ export function AgentEditor({
     prompt !== source.systemPrompt ||
     providerId !== source.providerId ||
     model !== source.model ||
-    enabled !== source.enabled;
+    enabled !== source.enabled ||
+    skillBindingsChanged;
   const valid =
     Boolean(name.trim() && role.trim() && prompt.trim()) &&
     name.trim().length <= 80 &&
     role.trim().length <= 80 &&
     description.trim().length <= 1000 &&
     prompt.trim().length <= 12000 &&
-    model.trim().length <= 200;
+    model.trim().length <= 200 &&
+    skillIds.length <= 8;
   async function save(event: FormEvent) {
     event.preventDefault();
     if (saving || !valid) return;
@@ -91,6 +98,7 @@ export function AgentEditor({
           providerId,
           model: model.trim(),
           enabled,
+          ...(!agent || skillBindingsChanged ? { skillIds } : {}),
         },
         agent ? "PATCH" : "POST",
       );
@@ -262,6 +270,67 @@ export function AgentEditor({
               <ShieldCheck size={14} />
               系统提示词用于定义工作方式。自定义成员可参与项目讨论，固定制作流程仍由内置成员执行。
             </p>
+            <fieldset className="agent-skill-bindings">
+              <legend>
+                绑定技能 <span>{skillIds.length} / 8</span>
+              </legend>
+              <p>
+                绑定的已启用技能会用于此 Agent 的聊天与制作任务。在技能库维护具体指令。
+              </p>
+              {skills.length || skillIds.length ? (
+                <div className="agent-skill-options">
+                  {[
+                    ...skills.map((skill) => ({
+                      id: skill.id,
+                      name: skill.name,
+                      description: skill.description,
+                      enabled: skill.enabled,
+                    })),
+                    ...skillIds
+                      .filter((id) => !skills.some((skill) => skill.id === id))
+                      .map((id) => ({
+                        id,
+                        name: id,
+                        description: "技能已不可用，可取消绑定。",
+                        enabled: false,
+                      })),
+                  ].map((skill) => {
+                    const checked = skillIds.includes(skill.id);
+                    return (
+                      <label key={skill.id} className="agent-skill-option">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          aria-label={`绑定 ${skill.name}${skill.enabled ? "" : "（已停用）"}`}
+                          disabled={!checked && skillIds.length >= 8}
+                          onChange={() =>
+                            setSkillIds(
+                              checked
+                                ? skillIds.filter((id) => id !== skill.id)
+                                : [...skillIds, skill.id],
+                            )
+                          }
+                        />
+                        <span>
+                          <strong>
+                            ${skill.name}
+                            {!skill.enabled && <em>已停用 · 暂不执行</em>}
+                          </strong>
+                          <span>{skill.description}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="agent-skill-empty">
+                  暂无技能，先到技能库创建或导入 SKILL.md。
+                </p>
+              )}
+              {skillIds.length >= 8 && (
+                <p role="status">最多绑定 8 个技能，取消一个后可以选择其他技能。</p>
+              )}
+            </fieldset>
             <div className="settings-option-row">
               <div>
                 <strong>允许加入制作组</strong>

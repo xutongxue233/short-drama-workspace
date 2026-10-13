@@ -88,6 +88,7 @@ test("custom agents survive create, edit, enable, invite, mention, copy and SQLi
     providerId: "",
     model: "",
     enabled: true,
+    skillIds: [],
   });
   const id = created.body.id;
   const path = `/agents/${id}`;
@@ -179,6 +180,133 @@ test("custom agents survive create, edit, enable, invite, mention, copy and SQLi
     false,
   );
   assert.equal((await fx.api(`/agents/${copied.body.id}`, "DELETE")).status, 404);
+});
+
+test("custom agent skills survive creation, editing, copying and restart, while deletion clears bindings but preserves usage history", async (t) => {
+  const fx = await fixture(t);
+  const skills = [];
+  for (const name of ["sound-review", "dialogue-review"]) {
+    const created = await fx.api("/skills", "POST", {
+      name,
+      description: `${name} 的说明`,
+      instructions: `独立技能指令标记【${name}】`,
+    });
+    assert.equal(created.status, 201);
+    skills.push(created.body);
+  }
+  const [sound, dialogue] = skills;
+  const created = await fx.api("/agents", "POST", {
+    ...draft,
+    providerId: "fixture-text",
+    skillIds: [sound.id],
+  });
+  assert.equal(created.status, 201);
+  const id = created.body.id;
+  assert.deepEqual(created.body.skillIds, [sound.id]);
+  const edited = await fx.api(`/agents/${id}`, "PATCH", {
+    skillIds: [sound.id, dialogue.id],
+  });
+  assert.equal(edited.status, 200);
+  assert.deepEqual(edited.body.skillIds, [sound.id, dialogue.id]);
+  const copied = await fx.api("/agents", "POST", {
+    ...edited.body,
+    name: "声音顾问副本",
+  });
+  assert.equal(copied.status, 201);
+  assert.notEqual(copied.body.id, id);
+  assert.deepEqual(copied.body.skillIds, [sound.id, dialogue.id]);
+  const unrelated = await fx.api(`/agents/${id}`, "PATCH", { role: "声音维护职责" });
+  assert.equal(unrelated.status, 200);
+  assert.deepEqual(unrelated.body.skillIds, [sound.id, dialogue.id]);
+  const project = (await fx.api("/projects", "POST", { name: "技能与成员集成" })).body;
+  const sent = await fx.api(`/projects/${project.id}/messages`, "POST", {
+    agentId: id,
+    content: "请建议声音设计。",
+    intent: "discussion",
+  });
+  assert.equal(sent.status, 201);
+  assert.equal(fx.model.requests.length, 1);
+  assert.match(fx.model.requests[0].prompt, /独立技能指令标记【sound-review】/);
+  assert.match(fx.model.requests[0].prompt, /独立技能指令标记【dialogue-review】/);
+  const used = skills.map(({ id, name, version }) => ({ id, name, version }));
+  assert.deepEqual(fx.state.projects[0].messages.at(-1).event.skills, used);
+  await fx.restart();
+  for (const agentId of [id, copied.body.id])
+    assert.deepEqual(fx.state.agents.find((agent) => agent.id === agentId).skillIds, [
+      sound.id,
+      dialogue.id,
+    ]);
+  const removed = await fx.api(`/skills/${sound.id}`, "DELETE", {
+    version: sound.version,
+  });
+  assert.equal(removed.status, 200);
+  for (const agentId of [id, copied.body.id])
+    assert.deepEqual(fx.state.agents.find((agent) => agent.id === agentId).skillIds, [
+      dialogue.id,
+    ]);
+  assert.deepEqual(fx.state.projects[0].messages.at(-1).event.skills, used);
+  assert.equal(
+    (await fx.api(`/agents/${copied.body.id}`, "PATCH", { skillIds: [] })).status,
+    200,
+  );
+  assert.equal((await fx.api(`/agents/${copied.body.id}`, "DELETE")).status, 200);
+  assert.ok(fx.state.skills.some((skill) => skill.id === dialogue.id));
+  await fx.restart();
+  assert.deepEqual(fx.state.agents.find((agent) => agent.id === id).skillIds, [
+    dialogue.id,
+  ]);
+  assert.deepEqual(fx.state.projects[0].messages.at(-1).event.skills, used);
+});
+
+test("invalid skill bindings reject custom creation and edits atomically, without blocking unrelated legacy maintenance", async (t) => {
+  const fx = await fixture(t);
+  const skill = (
+    await fx.api("/skills", "POST", {
+      name: "sound-review",
+      description: "声音检查",
+      instructions: "检查声音设计。",
+    })
+  ).body;
+  const agent = (await fx.api("/agents", "POST", { ...draft, skillIds: [skill.id] }))
+    .body;
+  for (const skillIds of [
+    null,
+    "not-array",
+    [null],
+    ["missing"],
+    [skill.id, skill.id],
+    Array(9).fill(skill.id),
+  ]) {
+    const before = structuredClone(fx.state);
+    const created = await fx.api("/agents", "POST", {
+      ...draft,
+      name: "无效绑定",
+      skillIds,
+    });
+    assert.equal(created.status, 400);
+    const patched = await fx.api(`/agents/${agent.id}`, "PATCH", {
+      role: "不应保存职责",
+      skillIds,
+    });
+    assert.equal(patched.status, 400);
+    assert.deepEqual(fx.state, before);
+  }
+  // Older saved bindings may point to removed records; edits that omit skillIds
+  // preserve them while an explicit replacement still receives strict validation.
+  fx.state.agents.find((item) => item.id === agent.id).skillIds = ["legacy-missing"];
+  fx.save();
+  const maintained = await fx.api(`/agents/${agent.id}`, "PATCH", {
+    description: "仍可维护",
+  });
+  assert.equal(maintained.status, 200);
+  assert.deepEqual(maintained.body.skillIds, ["legacy-missing"]);
+  assert.equal(
+    (await fx.api("/agents", "POST", { ...maintained.body, name: "过期副本" })).status,
+    400,
+  );
+  const cleared = await fx.api(`/agents/${agent.id}`, "PATCH", { skillIds: [] });
+  assert.equal(cleared.status, 200);
+  assert.deepEqual(cleared.body.skillIds, []);
 });
 
 test("agent fields are strictly validated before mutations and can be explicitly cleared", async (t) => {

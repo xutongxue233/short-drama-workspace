@@ -160,6 +160,7 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
           {...editing}
           agents={state.agents}
           providers={state.providers}
+          skills={state.skills ?? []}
           mutate={mutate}
           notify={notify}
           onSaved={editing.agent ? undefined : clearFilters}

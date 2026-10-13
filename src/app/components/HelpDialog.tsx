@@ -31,6 +31,10 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
               "接入你的模型",
               "在模型接入中配置文字、图片和视频接口，再给 Agent 绑定模型。配置完成后即可开始制作。",
             ],
+            [
+              "复用创作技能",
+              "在技能库维护创作方法，导入或导出 SKILL.md。聊天中选择技能或输入 $技能名，也可以在 Agent 配置中绑定技能，自动用于文字任务。",
+            ],
           ].map(([title, content], i) => (
             <div key={title}>
               <span>{i + 1}</span>

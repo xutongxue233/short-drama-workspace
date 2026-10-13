@@ -1,4 +1,4 @@
-import type { Agent, Message, Project } from "../../types";
+import type { Agent, Message, Project, SkillUsage } from "../../types";
 
 export const activityKindNames = {
   start: "开始执行",
@@ -19,6 +19,7 @@ export const activityKindNames = {
 export type ActivityKind = keyof typeof activityKindNames;
 export type ActivityFilter = ActivityKind | "workflow" | "all";
 export interface ActivityEntry {
+  skills?: SkillUsage[];
   id: string;
   kind: ActivityKind;
   agentId: string;
@@ -135,6 +136,7 @@ export function buildActivityLog(
           : undefined),
       runId: message.event?.runId,
       scope: message.event?.scope,
+      skills: message.event?.skills,
       fromAgentId: message.event?.fromAgentId,
       toAgentId: message.event?.toAgentId,
       fromNodeId: message.event?.fromNodeId,

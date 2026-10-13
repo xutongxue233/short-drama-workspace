@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import type { Agent, Provider } from "../../types";
+import type { Agent, Provider, Skill } from "../../types";
 import { AgentEditor } from "./AgentEditor";
 
 it("clears the old model override when switching to a different model service", async () => {
@@ -240,4 +240,169 @@ it("keeps the editor locked until a save request finishes", async () => {
   expect(onClose).not.toHaveBeenCalled();
   finish();
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+});
+
+it("preserves disabled skill bindings and limits selection to eight", async () => {
+  const skills: Skill[] = Array.from({ length: 9 }, (_, index) => ({
+    id: `skill-${index}`,
+    name: `skill-${index}`,
+    description: "技能用途",
+    instructions: "技能指令",
+    enabled: index !== 0,
+    version: 1,
+    createdAt: "2026-10-13",
+    updatedAt: "2026-10-13",
+  }));
+  const agent: Agent = {
+    id: "writer",
+    name: "编剧",
+    role: "剧本改编",
+    description: "编写剧本",
+    systemPrompt: "编写剧本",
+    providerId: "",
+    model: "",
+    color: "#7160cf",
+    enabled: true,
+    skillIds: skills.slice(0, 8).map((skill) => skill.id),
+  };
+  const mutate = vi.fn().mockResolvedValue({});
+  render(
+    <AgentEditor
+      agent={agent}
+      providers={[]}
+      skills={skills}
+      mutate={mutate}
+      onClose={vi.fn()}
+      notify={vi.fn()}
+    />,
+  );
+  expect(
+    (
+      screen.getByRole("checkbox", {
+        name: "绑定 skill-0（已停用）",
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(true);
+  expect(
+    (screen.getByRole("checkbox", { name: "绑定 skill-8" }) as HTMLInputElement)
+      .disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("checkbox", { name: "绑定 skill-1" }));
+  expect(
+    (screen.getByRole("checkbox", { name: "绑定 skill-8" }) as HTMLInputElement)
+      .disabled,
+  ).toBe(false);
+  fireEvent.click(screen.getByRole("checkbox", { name: "绑定 skill-8" }));
+  fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
+  await waitFor(() =>
+    expect(mutate).toHaveBeenCalledWith(
+      "/agents/writer",
+      expect.objectContaining({
+        skillIds: [
+          "skill-0",
+          "skill-2",
+          "skill-3",
+          "skill-4",
+          "skill-5",
+          "skill-6",
+          "skill-7",
+          "skill-8",
+        ],
+      }),
+      "PATCH",
+    ),
+  );
+});
+
+it("keeps skill choices after a failed save and guards closing a changed binding", async () => {
+  const skill: Skill = {
+    id: "review",
+    name: "review",
+    description: "审阅剧本",
+    instructions: "审阅指令",
+    enabled: true,
+    version: 1,
+    createdAt: "2026-10-13",
+    updatedAt: "2026-10-13",
+  };
+  const agent: Agent = {
+    id: "writer",
+    name: "编剧",
+    role: "剧本改编",
+    description: "编写剧本",
+    systemPrompt: "编写剧本",
+    providerId: "",
+    model: "",
+    color: "#7160cf",
+    enabled: true,
+  };
+  const mutate = vi.fn().mockRejectedValue(new Error("暂时无法保存"));
+  const onClose = vi.fn();
+  render(
+    <AgentEditor
+      agent={agent}
+      providers={[]}
+      skills={[skill]}
+      mutate={mutate}
+      onClose={onClose}
+      notify={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("checkbox", { name: "绑定 review" }));
+  fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
+  await waitFor(() =>
+    expect(
+      (screen.getByRole("button", { name: "保存配置" }) as HTMLButtonElement).disabled,
+    ).toBe(false),
+  );
+  expect(
+    (screen.getByRole("checkbox", { name: "绑定 review" }) as HTMLInputElement).checked,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "取消" }));
+  expect(screen.getByText("有尚未保存的修改")).toBeTruthy();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it("omits unchanged skill bindings when editing other fields so unavailable legacy skills do not block maintenance", async () => {
+  const mutate = vi.fn().mockResolvedValue({});
+  render(
+    <AgentEditor
+      agent={{ ...custom, skillIds: ["missing-skill"] }}
+      providers={[]}
+      mutate={mutate}
+      onClose={vi.fn()}
+      notify={vi.fn()}
+    />,
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: "工作职责" }), {
+    target: { value: "维护后的职责" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
+  await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+  expect(mutate.mock.calls[0][1]).not.toHaveProperty("skillIds");
+  expect(mutate.mock.calls[0][1]).toHaveProperty("role", "维护后的职责");
+});
+
+it("can explicitly remove an unavailable skill binding", async () => {
+  const mutate = vi.fn().mockResolvedValue({});
+  render(
+    <AgentEditor
+      agent={{ ...custom, skillIds: ["missing-skill"] }}
+      providers={[]}
+      mutate={mutate}
+      onClose={vi.fn()}
+      notify={vi.fn()}
+    />,
+  );
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: "绑定 missing-skill（已停用）" }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
+  await waitFor(() =>
+    expect(mutate).toHaveBeenCalledWith(
+      "/agents/agent-dialogue",
+      expect.objectContaining({ skillIds: [] }),
+      "PATCH",
+    ),
+  );
 });

@@ -1,6 +1,7 @@
 import { HttpError } from "../http/errors.mjs";
 import { textInput, booleanInput } from "../http/validation.mjs";
 import { NODE_DEFINITIONS } from "../seed.mjs";
+import { skillIdsInput } from "../skills.mjs";
 
 const BUILTIN_AGENTS = new Set(NODE_DEFINITIONS.map((node) => node[3]));
 const TEXT_FIELDS = [
@@ -13,9 +14,16 @@ const TEXT_FIELDS = [
 ];
 
 /** Validate only supplied fields so older saved agents can still be maintained. */
-export function agentInput(input, providers, { creating = false, existing } = {}) {
+export function agentInput(input, state, { creating = false, existing } = {}) {
   const patch = creating
-    ? { description: "", color: "#6e56cf", providerId: "", model: "", enabled: true }
+    ? {
+        description: "",
+        color: "#6e56cf",
+        providerId: "",
+        model: "",
+        enabled: true,
+        skillIds: [],
+      }
     : {};
   for (const [field, max, required] of TEXT_FIELDS) {
     if (Object.hasOwn(input, field) || (creating && required))
@@ -23,6 +31,8 @@ export function agentInput(input, providers, { creating = false, existing } = {}
   }
   if (Object.hasOwn(input, "enabled"))
     patch.enabled = booleanInput(input.enabled, "启用状态");
+  if (Object.hasOwn(input, "skillIds"))
+    patch.skillIds = skillIdsInput(input.skillIds, state);
   if (Object.hasOwn(input, "color")) {
     patch.color = textInput(input.color, "头像颜色", { max: 7, required: true });
     if (!/^#[0-9a-f]{6}$/i.test(patch.color))
@@ -30,7 +40,7 @@ export function agentInput(input, providers, { creating = false, existing } = {}
   }
   if (
     patch.providerId &&
-    !providers.some((provider) => provider.id === patch.providerId)
+    !state.providers.some((provider) => provider.id === patch.providerId)
   )
     throw new HttpError(400, "选择的模型接口不存在");
   // An override belongs to its provider; keep it only when explicitly resupplied.

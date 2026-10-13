@@ -29,6 +29,7 @@ export function characterCheckpointKey(
   planner,
   textProvider,
   task,
+  skills = [],
 ) {
   const binding = (role, service) => ({
     agentId: role.id,
@@ -58,6 +59,16 @@ export function characterCheckpointKey(
           .filter((node) => node.status === "completed")
           .map((node) => ({ id: node.id, output: node.output })),
         task,
+        ...(skills.length
+          ? {
+              skills: skills.map(({ id, name, version, instructions }) => ({
+                id,
+                name,
+                version,
+                instructions,
+              })),
+            }
+          : {}),
         image: binding(agent, provider),
         text: binding(planner, textProvider),
         // Unapproved edited drafts are replaced during generation. Their revision
