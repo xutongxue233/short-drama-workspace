@@ -1,4 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, ProjectSummary, WorkspaceState } from "../types";
 import { useWorkspaceState } from "./useWorkspaceState";
@@ -17,7 +24,10 @@ describe("first project onboarding", () => {
       },
     );
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it("never imports source into the old project while the newly selected project is absent from a snapshot", async () => {
     const old: Project = {
@@ -125,7 +135,9 @@ describe("first project onboarding", () => {
     expect(document.querySelector(".project-title p")?.textContent).toContain(
       "当前第 1 集",
     );
-    expect(localStorage.getItem("yingxu-project")).toBe("new-project");
+    await waitFor(() =>
+      expect(localStorage.getItem("yingxu-project")).toBe("new-project"),
+    );
   });
 
   it("selects a summary-only project and waits for its compact detail without showing the old project", () => {
