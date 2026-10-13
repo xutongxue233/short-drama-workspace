@@ -9,7 +9,12 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Avatar } from "../../../components/AgentAvatar";
+import { MemberAvatar, MemberKindBadge } from "../../../components/MemberIdentity";
+import {
+  projectMembers,
+  projectPermissions,
+  type RosterMember,
+} from "../../../shared/project-members";
 import type { Action } from "../../../shared/contracts";
 import {
   findMentionQuery,
@@ -20,25 +25,28 @@ import type { Agent, Project } from "../../../types";
 import { IconButton, Select } from "../../../ui";
 
 const draftSentEvent = "yingxu:chat-draft-sent";
-type ChatIntent = "auto" | "discussion";
+type ChatIntent = "group" | "auto" | "discussion";
 
-function readDraft(projectId: string): { text: string; intent: ChatIntent } {
+function readDraft(
+  draftKey: string,
+  fallback: ChatIntent,
+): { text: string; intent: ChatIntent } {
   try {
-    const saved = sessionStorage.getItem(`yingxu-draft-${projectId}`) || "";
+    const saved = sessionStorage.getItem(draftKey) || "";
     try {
       const draft = JSON.parse(saved);
       if (
         draft?.version === 1 &&
         typeof draft.text === "string" &&
-        ["auto", "discussion"].includes(draft.intent)
+        ["group", "auto", "discussion"].includes(draft.intent)
       )
         return { text: draft.text, intent: draft.intent };
     } catch {
       // Earlier releases stored just the message text.
     }
-    return { text: saved, intent: "auto" };
+    return { text: saved, intent: fallback };
   } catch {
-    return { text: "", intent: "auto" };
+    return { text: "", intent: fallback };
   }
 }
 
@@ -51,6 +59,7 @@ export function ChatComposer({
   autoFollow,
   onFollowLatest,
   onSendingChange,
+  currentUserId,
 }: {
   project: Project;
   agents: Agent[];
@@ -60,8 +69,14 @@ export function ChatComposer({
   autoFollow: boolean;
   onFollowLatest: () => void;
   onSendingChange?: (agentId: string | null) => void;
+  currentUserId?: string;
 }) {
-  const [savedDraft] = useState(() => readDraft(project.id));
+  const { canChat, canEdit } = projectPermissions(project);
+  const defaultIntent: ChatIntent = project.currentUserAccess ? "group" : "auto";
+  const draftKey = currentUserId
+    ? `yingxu-draft-${currentUserId}-${project.id}`
+    : `yingxu-draft-${project.id}`;
+  const [savedDraft] = useState(() => readDraft(draftKey, defaultIntent));
   const [text, setText] = useState(savedDraft.text);
   const [mentionQuery, setMentionQuery] = useState<MentionQuery | null>(null);
   const [activeOption, setActiveOption] = useState(0);
@@ -76,18 +91,26 @@ export function ChatComposer({
   const path = `/projects/${project.id}`;
   const targetMenuId = useId();
   const recipientHintId = useId();
-  const members = agents.filter(
-    (agent) => agent.enabled && project.members.includes(agent.id),
+  const members = projectMembers(project, agents, currentUserId).filter(
+    (member) => member.kind !== "agent" || member.agent?.enabled,
   );
   const parts = splitMentions(text, members);
-  const mentions = parts.filter((part) => part.agentId);
-  const target = mentions[0]?.agentId;
-  const targetAgent = members.find((agent) => agent.id === target);
+  const mentions = parts.filter((part) => part.agentId || part.userId);
+  const target = mentions[0]?.agentId || mentions[0]?.userId;
+  const targetMember = members.find((member) => member.id === target);
+  const targetAgent = targetMember?.kind === "agent" ? targetMember : undefined;
+  const groupMessage =
+    parts.some((part) => part.ambiguous) ||
+    !canEdit ||
+    Boolean(mentions[0]?.userId) ||
+    (!targetAgent && intent === "group");
   const candidates = mentionQuery
-    ? members.filter((agent) =>
-        `${agent.name} ${agent.role}`
-          .toLocaleLowerCase()
-          .includes(mentionQuery.query.toLocaleLowerCase()),
+    ? members.filter(
+        (agent) =>
+          (canEdit || agent.kind !== "agent") &&
+          `${agent.name} ${agent.role} ${agent.username || ""}`
+            .toLocaleLowerCase()
+            .includes(mentionQuery.query.toLocaleLowerCase()),
       )
     : [];
   const selectedOption = Math.min(activeOption, Math.max(candidates.length - 1, 0));
@@ -118,27 +141,24 @@ export function ChatComposer({
   }, []);
   useEffect(() => {
     try {
-      if (text || intent !== "auto")
-        sessionStorage.setItem(
-          `yingxu-draft-${project.id}`,
-          JSON.stringify({ version: 1, text, intent }),
-        );
-      else sessionStorage.removeItem(`yingxu-draft-${project.id}`);
+      if (text || intent !== defaultIntent)
+        sessionStorage.setItem(draftKey, JSON.stringify({ version: 1, text, intent }));
+      else sessionStorage.removeItem(draftKey);
     } catch {
       /* Draft persistence is optional when browser storage is unavailable. */
     }
-  }, [project.id, text, intent]);
+  }, [draftKey, defaultIntent, text, intent]);
   useEffect(() => {
     const clearSentDraft = (event: Event) => {
       const detail = (
-        event as CustomEvent<{ projectId: string; draft: string; intent: ChatIntent }>
+        event as CustomEvent<{ draftKey: string; draft: string; intent: ChatIntent }>
       ).detail;
-      if (detail?.projectId === project.id && detail.intent === intent)
+      if (detail?.draftKey === draftKey && detail.intent === intent)
         setText((current) => (current === detail.draft ? "" : current));
     };
     window.addEventListener(draftSentEvent, clearSentDraft);
     return () => window.removeEventListener(draftSentEvent, clearSentDraft);
-  }, [project.id, intent]);
+  }, [draftKey, intent]);
   useEffect(() => {
     if (!menuOpen) return;
     const outside = (event: PointerEvent) => {
@@ -154,11 +174,14 @@ export function ChatComposer({
       ?.scrollIntoView?.({ block: "nearest" });
   }, [menuOpen, selectedOption, targetMenuId]);
 
-  const selectMention = (agent: Agent) => {
+  const selectMention = (agent: RosterMember) => {
     if (!mentionQuery) return;
     const before = text.slice(0, mentionQuery.start);
     const after = text.slice(mentionQuery.end);
-    const token = `@${agent.name}${after.startsWith(" ") ? "" : " "}`;
+    const duplicateName =
+      members.filter((member) => member.name === agent.name).length > 1;
+    const mentionName = duplicateName && agent.username ? agent.username : agent.name;
+    const token = `@${mentionName}${after.startsWith(" ") ? "" : " "}`;
     const value = `${before}${token}${after}`;
     if (value.length > 10000) return;
     nextSelection.current = before.length + token.length;
@@ -189,7 +212,9 @@ export function ChatComposer({
 
   const removeRecipient = () => {
     const value = parts
-      .map((part) => (part.agentId === target ? "" : part.text))
+      .map((part) =>
+        target && (part.agentId === target || part.userId === target) ? "" : part.text,
+      )
       .join("");
     nextSelection.current = value.length;
     setText(value);
@@ -197,25 +222,27 @@ export function ChatComposer({
   };
 
   const send = async () => {
-    if (!text.trim() || sendingRef.current || busy || composing.current) return;
+    if (!canChat || !text.trim() || sendingRef.current || busy || composing.current)
+      return;
     const draft = text;
     sendingRef.current = true;
     setSending(true);
     setMentionQuery(null);
-    onSendingChange?.(target || "producer");
+    onSendingChange?.(groupMessage ? null : targetAgent?.id || "producer");
     onFollowLatest();
     try {
       const ok = await onAction(`${path}/messages`, {
         content: draft.trim(),
-        agentId: target || undefined,
-        ...(intent === "discussion" ? { intent } : {}),
+        agentId: groupMessage ? null : targetAgent?.id || undefined,
+        ...(mentions[0]?.userId ? { recipientUserId: mentions[0].userId } : {}),
+        ...(!groupMessage && intent === "discussion" ? { intent } : {}),
       });
       if (ok) {
         // A reply can finish after this composer unmounts. Clear the saved draft
         // and notify a remounted instance without erasing newer user edits.
         try {
-          const key = `yingxu-draft-${project.id}`;
-          const saved = readDraft(project.id);
+          const key = draftKey;
+          const saved = readDraft(draftKey, defaultIntent);
           if (saved.text === draft && saved.intent === intent)
             sessionStorage.removeItem(key);
         } catch {
@@ -223,7 +250,7 @@ export function ChatComposer({
         }
         window.dispatchEvent(
           new CustomEvent(draftSentEvent, {
-            detail: { projectId: project.id, draft, intent },
+            detail: { draftKey, draft, intent },
           }),
         );
       }
@@ -248,7 +275,7 @@ export function ChatComposer({
         <div className="composer-editor">
           <div className="composer-highlight" ref={highlight} aria-hidden="true">
             {parts.map((part, index) =>
-              part.agentId ? (
+              part.agentId || part.userId ? (
                 <mark className="composer-mention" key={index}>
                   {part.text}
                 </mark>
@@ -261,6 +288,7 @@ export function ChatComposer({
           <textarea
             ref={composer}
             aria-label="群聊消息"
+            disabled={!canChat}
             maxLength={10000}
             value={text}
             aria-autocomplete="list"
@@ -335,13 +363,13 @@ export function ChatComposer({
                 void send();
               }
             }}
-            placeholder="输入消息，@ 指定成员…"
+            placeholder={canChat ? "输入消息，@ 提及群成员…" : "只读成员暂不能发送消息"}
             rows={2}
           />
           {menuOpen && (
             <div className="mention-picker">
               <div className="mention-picker-heading">
-                <span>选择回复 Agent</span>
+                <span>提及群成员</span>
                 <small>↑↓ 选择 · Enter 确认</small>
               </div>
               <div
@@ -362,10 +390,17 @@ export function ChatComposer({
                     onClick={() => selectMention(agent)}
                     onMouseEnter={() => setActiveOption(index)}
                   >
-                    <Avatar agent={agent} size="small" />
+                    <MemberAvatar member={agent} size="small" />
                     <span className="mention-option-copy">
-                      <strong>{agent.name}</strong>
-                      <small>{agent.role}</small>
+                      <strong>
+                        {agent.name} <MemberKindBadge kind={agent.kind} />
+                      </strong>
+                      <small>
+                        {agent.role ||
+                          (agent.kind === "agent"
+                            ? "AI 回复"
+                            : `@${agent.username || agent.name}`)}
+                      </small>
                     </span>
                     <AtSign size={13} aria-hidden="true" />
                   </button>
@@ -375,7 +410,7 @@ export function ChatComposer({
                 <p className="mention-empty" role="status">
                   {members.length
                     ? "没有匹配的群成员，试试名称或角色。"
-                    : "暂无可提及的成员，请先邀请并启用 Agent。"}
+                    : "暂无可提及的成员，请联系项目所有者添加成员。"}
                 </p>
               )}
             </div>
@@ -383,22 +418,24 @@ export function ChatComposer({
         </div>
         <div className="composer-toolbar">
           <div className="composer-tools">
-            <Select
-              className="chat-intent-select"
-              aria-label="消息协作模式"
-              value={intent}
-              onChange={(event) =>
-                setIntent(event.target.value as "auto" | "discussion")
-              }
-              title="自动协作：向总制片发送明确的创作指令会启动制作流程；仅讨论：只回复消息。"
-            >
-              <option value="auto">自动协作</option>
-              <option value="discussion">仅讨论</option>
-            </Select>
+            {canEdit && (
+              <Select
+                className="chat-intent-select"
+                aria-label="消息协作模式"
+                value={intent}
+                onChange={(event) => setIntent(event.target.value as ChatIntent)}
+                title="群聊发送给团队；@ Agent 时请求 AI 回复。自动协作可启动制作；仅讨论让 AI 只回复。"
+              >
+                <option value="group">群聊</option>
+                <option value="auto">自动协作</option>
+                <option value="discussion">仅讨论</option>
+              </Select>
+            )}
             <IconButton
               className={target ? "selected" : ""}
-              title="选择回复 Agent"
-              label="选择回复 Agent"
+              title="提及群成员"
+              label="提及群成员"
+              disabled={!canChat}
               aria-expanded={menuOpen}
               aria-haspopup="listbox"
               aria-controls={menuOpen ? targetMenuId : undefined}
@@ -406,24 +443,26 @@ export function ChatComposer({
             >
               <AtSign size={18} />
             </IconButton>
-            <button className="source-text-button" onClick={onSource}>
-              <BookOpen size={14} />
-              {project.chapters.length ? (
-                <>
-                  本集原文<span>{project.chapters.length}</span>
-                </>
-              ) : (
-                "导入原文"
-              )}
-            </button>
+            {canEdit && (
+              <button className="source-text-button" onClick={onSource}>
+                <BookOpen size={14} />
+                {project.chapters.length ? (
+                  <>
+                    本集原文<span>{project.chapters.length}</span>
+                  </>
+                ) : (
+                  "导入原文"
+                )}
+              </button>
+            )}
             {target && (
               <button
                 className="target-label"
-                title={`移除 @${targetAgent?.name || "Agent"}`}
-                aria-label={`取消指定回复 Agent：${targetAgent?.name || "Agent"}`}
+                title={`移除 @${targetMember?.name || "成员"}`}
+                aria-label={`取消提及：${targetMember?.name || "成员"}`}
                 onClick={removeRecipient}
               >
-                <span>@{targetAgent?.name}</span>
+                <span>@{targetMember?.name}</span>
                 <X size={11} />
               </button>
             )}
@@ -432,7 +471,7 @@ export function ChatComposer({
             className="send-button"
             aria-label="发送消息"
             title="发送消息（Ctrl / ⌘ + Enter）"
-            disabled={!text.trim() || sending || busy}
+            disabled={!canChat || !text.trim() || sending || busy}
             onClick={() => void send()}
           >
             {sending ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}
@@ -441,31 +480,40 @@ export function ChatComposer({
       </div>
       <div className="composer-footer">
         <p className="composer-recipient" id={recipientHintId}>
-          {new Set(mentions.map((part) => part.agentId)).size > 1
-            ? `提及了多位成员，本次由首位「${targetAgent?.name}」回复`
-            : targetAgent
-              ? `由「${targetAgent.name}」回复`
-              : "由总制片回复"}
+          {!canChat
+            ? "只读权限 · 可查看项目内容"
+            : parts.some((part) => part.ambiguous)
+              ? "存在同名成员，请使用 @用户名；本条消息仅发送到群聊"
+              : groupMessage
+                ? targetMember && targetMember.kind !== "agent"
+                  ? `提及「${targetMember.name}」，发送到群聊`
+                  : "发送到群聊，所有项目成员可见"
+                : new Set(mentions.map((part) => part.agentId || part.userId)).size > 1
+                  ? `提及了多位成员，本次由首位「${targetAgent?.name}」回复`
+                  : targetAgent
+                    ? `由「${targetAgent.name}」回复`
+                    : "由总制片回复"}
         </p>
-        {project.running ? (
-          <button onClick={() => void onAction(`${path}/stop`)} disabled={busy}>
-            <Pause size={12} />
-            暂停制作
-          </button>
-        ) : !project.approval && !done && project.chapters.length > 0 ? (
-          <button
-            className="run-text-button"
-            onClick={() => void onAction(`${path}/run`)}
-            disabled={busy}
-          >
-            <Play size={12} />
-            {project.nodes.some((n) => n.status === "failed")
-              ? "重试失败节点"
-              : project.nodes.every((n) => n.status === "pending" && !n.startedAt)
-                ? "开始制作"
-                : "继续制作"}
-          </button>
-        ) : null}
+        {canEdit &&
+          (project.running ? (
+            <button onClick={() => void onAction(`${path}/stop`)} disabled={busy}>
+              <Pause size={12} />
+              暂停制作
+            </button>
+          ) : !project.approval && !done && project.chapters.length > 0 ? (
+            <button
+              className="run-text-button"
+              onClick={() => void onAction(`${path}/run`)}
+              disabled={busy}
+            >
+              <Play size={12} />
+              {project.nodes.some((n) => n.status === "failed")
+                ? "重试失败节点"
+                : project.nodes.every((n) => n.status === "pending" && !n.startedAt)
+                  ? "开始制作"
+                  : "继续制作"}
+            </button>
+          ) : null)}
       </div>
     </div>
   );

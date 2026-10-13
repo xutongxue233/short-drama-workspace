@@ -43,11 +43,16 @@ const project: Project = {
 
 beforeEach(() => sessionStorage.clear());
 
-function setup(onAction = vi.fn().mockResolvedValue(true)) {
+function setup(
+  onAction = vi.fn().mockResolvedValue(true),
+  patch: Partial<Project> = {},
+  currentUserId?: string,
+) {
   const onSendingChange = vi.fn();
   const view = render(
     <ChatComposer
-      project={project}
+      project={{ ...project, ...patch }}
+      currentUserId={currentUserId}
       agents={agents}
       busy={false}
       onAction={onAction}
@@ -142,7 +147,7 @@ describe("chat composer mentions", () => {
   it("inserts from the toolbar at the caret and keeps text after a mention query", () => {
     const { input } = setup();
     type(input, "请看后文", 2);
-    fireEvent.click(screen.getByRole("button", { name: "选择回复 Agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "提及群成员" }));
     fireEvent.click(screen.getByRole("option", { name: /编剧/ }));
     expect(input.value).toBe("请看 @编剧 后文");
     expect(input.selectionStart).toBe(7);
@@ -183,7 +188,7 @@ describe("chat composer mentions", () => {
     const { input, onAction } = setup();
     type(input, "@编剧 和 @总制片 请讨论");
     expect(screen.getByText(/本次由首位「编剧」回复/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "取消指定回复 Agent：编剧" }));
+    fireEvent.click(screen.getByRole("button", { name: "取消提及：编剧" }));
     expect(input.value).toBe(" 和 @总制片 请讨论");
     type(input, "请创作第一集");
     fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
@@ -286,4 +291,128 @@ describe("chat composer mentions", () => {
       intent: "auto",
     });
   });
+});
+
+describe("authenticated group chat permissions", () => {
+  const participants: NonNullable<Project["participants"]> = [
+    {
+      userId: "lin",
+      username: "lin",
+      displayName: "小林",
+      kind: "human",
+      access: "member",
+    },
+    {
+      userId: "notify",
+      username: "notify",
+      displayName: "通知助手",
+      kind: "bot",
+      access: "member",
+    },
+  ];
+  it("defaults to group messages without requesting an AI reply", async () => {
+    const { input, onAction, onSendingChange } = setup(
+      undefined,
+      { participants, currentUserAccess: "editor" },
+      "editor",
+    );
+    type(input, "今天几点交付？");
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+    await waitFor(() =>
+      expect(onAction).toHaveBeenCalledWith("/projects/mention-test/messages", {
+        content: "今天几点交付？",
+        agentId: null,
+      }),
+    );
+    expect(onSendingChange).not.toHaveBeenCalledWith("producer");
+  });
+  it.each(["小林", "通知助手"])(
+    "keeps a mention of %s in the group without routing to AI",
+    async (name) => {
+      const { input, onAction } = setup(undefined, {
+        participants,
+        currentUserAccess: "editor",
+      });
+      fireEvent.click(screen.getByRole("combobox", { name: "消息协作模式" }));
+      fireEvent.click(screen.getByRole("option", { name: "自动协作" }));
+      type(input, `@${name} 请确认`);
+      fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+      await waitFor(() =>
+        expect(onAction).toHaveBeenCalledWith("/projects/mention-test/messages", {
+          content: `@${name} 请确认`,
+          agentId: null,
+          recipientUserId: name === "小林" ? "lin" : "notify",
+        }),
+      );
+    },
+  );
+  it("allows a member to chat but does not offer Agent invocation or production", async () => {
+    const { input, onAction } = setup(undefined, {
+      participants,
+      currentUserAccess: "member",
+    });
+    expect(screen.queryByRole("combobox", { name: "消息协作模式" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "导入原文" })).toBeNull();
+    type(input, "@");
+    expect(within(screen.getByRole("listbox")).getAllByRole("option")).toHaveLength(2);
+    type(input, "@编剧 请创作一集");
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+    await waitFor(() =>
+      expect(onAction).toHaveBeenCalledWith("/projects/mention-test/messages", {
+        content: "@编剧 请创作一集",
+        agentId: null,
+      }),
+    );
+  });
+  it("keeps a viewer unable to send or invoke production", () => {
+    const { input, onAction } = setup(undefined, { currentUserAccess: "viewer" });
+    expect(input.disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "发送消息" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
+    expect(onAction).not.toHaveBeenCalled();
+  });
+  it("isolates saved drafts by signed-in user", () => {
+    const first = setup(undefined, { currentUserAccess: "member" }, "first");
+    type(first.input, "私人草稿");
+    first.unmount();
+    const second = setup(undefined, { currentUserAccess: "member" }, "second");
+    expect(second.input.value).toBe("");
+  });
+});
+
+it("does not fall back to the producer for ambiguous human and Agent names", async () => {
+  const { input, onAction } = setup(undefined, {
+    currentUserAccess: "owner",
+    participants: [
+      {
+        userId: "human-writer",
+        username: "real.writer",
+        displayName: "编剧",
+        kind: "human",
+        access: "editor",
+      },
+    ],
+  });
+  fireEvent.click(screen.getByRole("combobox", { name: "消息协作模式" }));
+  fireEvent.click(screen.getByRole("option", { name: "自动协作" }));
+  type(input, "@编剧 请看这里");
+  expect(screen.getByText(/存在同名成员/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+  await waitFor(() =>
+    expect(onAction).toHaveBeenCalledWith("/projects/mention-test/messages", {
+      content: "@编剧 请看这里",
+      agentId: null,
+    }),
+  );
+  type(input, "@real.writer 请看这里");
+  fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+  await waitFor(() =>
+    expect(onAction).toHaveBeenLastCalledWith("/projects/mention-test/messages", {
+      content: "@real.writer 请看这里",
+      agentId: null,
+      recipientUserId: "human-writer",
+    }),
+  );
 });

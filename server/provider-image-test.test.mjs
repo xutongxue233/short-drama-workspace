@@ -41,6 +41,7 @@ async function fixture(t, generateReply, options = {}) {
   const project = {
     id: "test-project",
     name: "借邪骨",
+    participants: [{ userId: "fixture-owner", access: "owner" }],
     style: "二次元动画",
     running: false,
     materials: [],
@@ -56,6 +57,11 @@ async function fixture(t, generateReply, options = {}) {
   const pending = { value: null };
   const app = express();
   app.use(express.json());
+  // Route-unit fixture supplies the authenticated principal expected by the route.
+  app.use((req, _res, next) => {
+    req.auth = { user: { id: "fixture-owner", role: "admin", kind: "human" } };
+    next();
+  });
   const routes = mountProviderRoutes(app, {
     getState: () => ({ providers: [provider] }),
     save() {},

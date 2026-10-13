@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { TextContent } from "../../../components/TextContent";
 import type { Action } from "../../../shared/contracts";
 import { statusNames } from "../../../shared/labels";
+import { projectPermissions } from "../../../shared/project-members";
 import type { Agent, Project, WorkflowNode } from "../../../types";
 import { Button, Dialog, DialogBody, DialogFooter } from "../../../ui";
 
@@ -35,8 +36,13 @@ export function NodeDialog({
       (image) => image.status === "submitted" && !image.result?.url,
     ) ?? [];
   const taskId = node.videoGeneration?.taskId;
+  const canEdit = project ? projectPermissions(project).canEdit : false;
   const canArchive = Boolean(
-    project && !project.running && !project.backgroundTask && !project.chatPending,
+    canEdit &&
+    project &&
+    !project.running &&
+    !project.backgroundTask &&
+    !project.chatPending,
   );
   const archiveTask = async (kind: "image" | "video", id: string) => {
     if (!canArchive || busy) return;
@@ -55,6 +61,7 @@ export function NodeDialog({
     if (ok) setArchiveConfirm("");
   };
   const canRerun = !!(
+    canEdit &&
     project &&
     node &&
     !project.running &&

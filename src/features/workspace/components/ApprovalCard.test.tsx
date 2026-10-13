@@ -938,3 +938,19 @@ describe("final character approval", () => {
     ).toBe(false);
   });
 });
+
+it.each(["member", "viewer"] as const)(
+  "keeps %s approval controls read-only",
+  (access) => {
+    const { onAction } = setup(undefined, { ...project, currentUserAccess: access });
+    const confirm = screen.getByRole("button", {
+      name: "确认并继续",
+    }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(onAction).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("等待项目所有者或编辑者确认，你可以查看当前方案。"),
+    ).toBeTruthy();
+  },
+);

@@ -8,7 +8,7 @@ import {
 } from "../workflow/memory.mjs";
 import { generate } from "../providers/generate.mjs";
 import { redact } from "../providers/config.mjs";
-import { mentionedAgent } from "./chat-mentions.mjs";
+import { mentionedAgent, mentionedParticipant } from "./chat-mentions.mjs";
 import { productionCommand } from "./chat-commands.mjs";
 import { uid } from "../seed.mjs";
 import { projectTask } from "./project-tasks.mjs";
@@ -30,12 +30,8 @@ function replyFailure(error, providers) {
 export function createChatService({ getState, save, workflow, materials }) {
   const chatJobs = new Map();
   let closed = false;
-  async function sendMessage(project, input, { signal } = {}) {
+  async function sendMessage(project, input, { signal, sender, access } = {}) {
     if (closed) throw new HttpError(503, "本地服务正在关闭，请稍后重试。");
-    if (projectTask(project))
-      throw new HttpError(409, "图片测试仍在进行，请等待完成后发送消息。");
-    if (chatJobs.has(project.id))
-      throw new HttpError(409, "上一条 Agent 回复仍在生成，请等待后再发送。");
 
     const content = textInput(input.content, "消息", {
       max: 10000,
@@ -43,21 +39,74 @@ export function createChatService({ getState, save, workflow, materials }) {
     });
     if (input.intent !== undefined && !["auto", "discussion"].includes(input.intent))
       throw new HttpError(400, "消息模式必须是 auto 或 discussion");
+    let recipient;
+    if (input.recipientUserId !== undefined) {
+      const recipientId = textInput(input.recipientUserId, "接收者", {
+        max: 100,
+        required: true,
+      });
+      recipient = getState().security?.users.find(
+        (user) =>
+          user.id === recipientId &&
+          !user.disabled &&
+          project.participants?.some((participant) => participant.userId === user.id),
+      );
+      if (!recipient) throw new HttpError(400, "接收者不是当前项目成员。");
+      if (input.agentId) throw new HttpError(400, "不能同时选择用户和 Agent 接收者。");
+    } else if (input.agentId === undefined) {
+      recipient = mentionedParticipant(
+        content,
+        project.participants || [],
+        getState().security?.users || [],
+      );
+    }
     const agentId =
-      input.agentId === undefined
-        ? (mentionedAgent(content, getState().agents, project.members)?.id ??
-          "producer")
-        : textInput(input.agentId, "Agent 标识", { max: 80, required: true });
+      recipient || input.agentId === null
+        ? null
+        : input.agentId === undefined
+          ? (mentionedAgent(content, getState().agents, project.members)?.id ??
+            "producer")
+          : textInput(input.agentId, "Agent 标识", { max: 80, required: true });
+    const saveUserMessage = () => {
+      const message = addMessage(project, "user", content, "text");
+      if (sender)
+        message.sender = {
+          id: sender.id,
+          displayName: sender.displayName,
+          kind: sender.kind,
+        };
+      if (recipient) message.recipientUserId = recipient.id;
+      return message;
+    };
+    if (!agentId)
+      return stateTransaction(project, () => {
+        const message = saveUserMessage();
+        save();
+        return message;
+      });
+    if (projectTask(project))
+      throw new HttpError(409, "图片测试仍在进行，请等待完成后发送消息。");
+    if (chatJobs.has(project.id))
+      throw new HttpError(409, "上一条 Agent 回复仍在生成，请等待后再发送。");
     const agent = getState().agents.find((item) => item.id === agentId);
     if (!agent || !agent.enabled) throw new HttpError(400, "目标 Agent 不存在或未启用");
+    const command = productionCommand(content, agent, input.intent);
+    if (
+      sender &&
+      !["owner", "editor"].includes(access) &&
+      (command || !project.members.includes(agentId))
+    )
+      throw new HttpError(403, "启动制作、暂停制作或邀请 Agent 需要编辑权限。");
     const message = stateTransaction(project, () => {
       workflow.invite(project, agentId);
-      const message = addMessage(project, "user", content, "text");
-      remember(project, `用户反馈（交给${agent.name}）：${content}`);
+      const message = saveUserMessage();
+      remember(
+        project,
+        `${sender?.displayName || "用户"}反馈（交给${agent.name}）：${content}`,
+      );
       save();
       return message;
     });
-    const command = productionCommand(content, agent, input.intent);
     if (command) {
       let reply;
       try {

@@ -22,6 +22,7 @@ export interface ActivityEntry {
   id: string;
   kind: ActivityKind;
   agentId: string;
+  sender?: Message["sender"];
   relatedAgentIds: string[];
   nodeId?: string;
   relatedNodeIds: string[];
@@ -107,10 +108,11 @@ export function buildActivityLog(
     return {
       id: message.id,
       kind: messageKind(message),
-      agentId: message.agentId,
+      agentId: message.sender?.id || message.agentId,
+      ...(message.sender ? { sender: message.sender } : {}),
       relatedAgentIds: [
         ...new Set([
-          message.agentId,
+          message.sender?.id || message.agentId,
           ...(owner ? [owner] : []),
           ...(failedAgent ? [failedAgent] : []),
           ...(invitedAgent ? [invitedAgent, "producer"] : []),

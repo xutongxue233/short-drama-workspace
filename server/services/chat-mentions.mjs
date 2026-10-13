@@ -17,3 +17,22 @@ export function mentionedAgent(content, agents, members) {
   }
   return undefined;
 }
+
+export function mentionedParticipant(content, participants, users) {
+  const candidates = participants.flatMap((participant) => {
+    const user = users.find((item) => item.id === participant.userId && !item.disabled);
+    return user ? [user] : [];
+  });
+  for (const match of content.matchAll(/[@＠]/g)) {
+    if (match.index > 0 && wordCharacter.test(content[match.index - 1])) continue;
+    const rest = content.slice(match.index + 1);
+    const user = candidates.find((candidate) =>
+      [candidate.displayName, candidate.username].some(
+        (name) =>
+          name && rest.startsWith(name) && !wordCharacter.test(rest[name.length] || ""),
+      ),
+    );
+    if (user) return user;
+  }
+  return undefined;
+}

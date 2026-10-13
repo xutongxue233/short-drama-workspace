@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -188,6 +189,7 @@ test("HTTP deletion resets affected workflow checkpoint and approval while prese
   characterNode.characterGeneration = { id: "generation", plan: [{ name: "角色" }] };
   project.approval = { id: "approval", nodeId: "storyboard" };
   const base = `http://127.0.0.1:${server.address().port}`;
+  const { fetch } = await authenticatedFetch(base);
   const response = await fetch(
     `${base}/api/projects/${project.id}/materials/${material.id}`,
     { method: "DELETE" },

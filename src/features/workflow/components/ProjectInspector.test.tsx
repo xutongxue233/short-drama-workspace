@@ -49,6 +49,15 @@ const project: Project = {
   createdAt: "",
   updatedAt: "",
   members: agents.map((agent) => agent.id),
+  participants: [
+    {
+      userId: "owner",
+      username: "xiaolin",
+      displayName: "小林",
+      kind: "human",
+      access: "owner",
+    },
+  ],
   messages: [],
   chapters: [],
   assets: [],
@@ -138,14 +147,14 @@ describe("project and episode overview", () => {
   it("includes the project owner in the group count and opens their manual records", () => {
     const { onActivity } = inspector();
     expect(screen.getByRole("heading", { name: "群成员" })).toBeTruthy();
-    expect(screen.getByText("4 人")).toBeTruthy();
-    const owner = screen.getByRole("button", { name: "查看 我 的工作记录" });
+    expect(screen.getByText("4 位成员")).toBeTruthy();
+    const owner = screen.getByRole("button", { name: "查看 小林 的工作记录" });
     expect(within(owner).queryByText("真人")).toBeNull();
-    expect(owner.querySelector(".studio-member-kind")).toBeNull();
+    expect(within(owner).getByText("用户")).toBeTruthy();
     expect(screen.getAllByText("Agent")).toHaveLength(3);
-    expect(within(owner).getByText("项目负责人")).toBeTruthy();
+    expect(within(owner).getByText("项目所有者")).toBeTruthy();
     fireEvent.click(owner);
-    expect(onActivity).toHaveBeenCalledWith("user");
+    expect(onActivity).toHaveBeenCalledWith("owner");
   });
 
   it("separates project totals from current episode nodes and counts only usable shared assets", () => {

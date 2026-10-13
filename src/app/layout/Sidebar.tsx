@@ -23,6 +23,7 @@ export function Sidebar({
   onHelp,
   onNewProject,
   onChooseProject,
+  isAdmin = true,
 }: {
   projects: ProjectSummary[];
   project?: ProjectSummary;
@@ -31,6 +32,7 @@ export function Sidebar({
   onHelp: () => void;
   onNewProject: () => void;
   onChooseProject: (id: string) => void;
+  isAdmin?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -86,26 +88,30 @@ export function Sidebar({
           <Images size={18} />
           <span className="nav-text">素材库</span>
         </button>
-        <button
-          title="Agent 中心"
-          aria-label="Agent 中心"
-          aria-current={view === "agents" ? "page" : undefined}
-          className={view === "agents" ? "active" : ""}
-          onClick={() => onNavigate("agents")}
-        >
-          <Bot size={18} />
-          <span className="nav-text">Agent 中心</span>
-        </button>
-        <button
-          title="模型接入"
-          aria-label="模型接入"
-          aria-current={view === "models" ? "page" : undefined}
-          className={view === "models" ? "active" : ""}
-          onClick={() => onNavigate("models")}
-        >
-          <Settings2 size={18} />
-          <span className="nav-text">模型接入</span>
-        </button>
+        {isAdmin && (
+          <button
+            title="Agent 中心"
+            aria-label="Agent 中心"
+            aria-current={view === "agents" ? "page" : undefined}
+            className={view === "agents" ? "active" : ""}
+            onClick={() => onNavigate("agents")}
+          >
+            <Bot size={18} />
+            <span className="nav-text">Agent 中心</span>
+          </button>
+        )}
+        {isAdmin && (
+          <button
+            title="模型接入"
+            aria-label="模型接入"
+            aria-current={view === "models" ? "page" : undefined}
+            className={view === "models" ? "active" : ""}
+            onClick={() => onNavigate("models")}
+          >
+            <Settings2 size={18} />
+            <span className="nav-text">模型接入</span>
+          </button>
+        )}
       </nav>
       <div className="project-section-title">
         <span>

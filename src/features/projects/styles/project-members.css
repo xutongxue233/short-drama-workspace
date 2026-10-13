@@ -115,3 +115,46 @@ button.project-roster-person:hover {
     margin-left: 38px;
   }
 }
+.project-participant-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+.project-participant-form > .ui-field:first-child,
+.project-participant-form-actions {
+  grid-column: 1 / -1;
+}
+.project-participant-form-actions,
+.project-participant-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+}
+.project-roster-row.joined {
+  flex-wrap: wrap;
+  gap: 0;
+}
+.project-participant-actions {
+  width: 100%;
+  margin: -5px 0 8px;
+}
+.project-roster-record {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--muted);
+  border-radius: 5px;
+}
+.project-roster-record:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+@media (max-width: 600px) {
+  .project-participant-form {
+    grid-template-columns: 1fr;
+  }
+}

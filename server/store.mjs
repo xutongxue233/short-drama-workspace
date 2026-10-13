@@ -6,6 +6,7 @@ import { migrateProjectScope, PROJECT_MIGRATION } from "./project-migration.mjs"
 import { migrateProjectEpisodes, EPISODE_MIGRATION } from "./episode-migration.mjs";
 import { createPersistence } from "./storage/persistence.mjs";
 import { createQueries } from "./storage/queries.mjs";
+import { createCredentialVault } from "./storage/credentials.mjs";
 
 /** Mutable workflow state, persisted as changed entity rows in one SQLite transaction. */
 export function createStore({
@@ -21,6 +22,7 @@ export function createStore({
     );
     const { state, save } = createPersistence(db, {
       seed,
+      credentials: createCredentialVault(filename),
       migrations: [
         [migrateProjectScope, PROJECT_MIGRATION],
         [migrateProjectEpisodes, EPISODE_MIGRATION],

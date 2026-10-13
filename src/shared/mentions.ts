@@ -1,9 +1,15 @@
 import type { Agent } from "../types";
 
-type MentionAgent = Pick<Agent, "id" | "name"> & Partial<Pick<Agent, "role">>;
+export type MentionAgent = Pick<Agent, "id" | "name"> &
+  Partial<Pick<Agent, "role">> & {
+    kind?: "agent" | "human" | "bot";
+    username?: string;
+  };
 export interface MentionPart {
   text: string;
   agentId?: string;
+  userId?: string;
+  ambiguous?: boolean;
 }
 export interface MentionQuery {
   start: number;
@@ -18,22 +24,42 @@ export function splitMentions(
   text: string,
   agents: readonly MentionAgent[],
 ): MentionPart[] {
-  const names = [...agents]
+  const names = agents
+    .flatMap((member) => [
+      member,
+      ...(member.kind &&
+      member.kind !== "agent" &&
+      member.username &&
+      member.username !== member.name
+        ? [{ ...member, name: member.username }]
+        : []),
+    ])
     .filter((agent) => agent.name)
     .sort((a, b) => b.name.length - a.name.length);
   const parts: MentionPart[] = [];
   let plainStart = 0;
   for (let index = 0; index < text.length; index += 1) {
     if (!"@＠".includes(text[index]) || isWord(text[index - 1])) continue;
-    const agent = names.find(
+    const matching = names.filter(
       (item) =>
         text.startsWith(item.name, index + 1) &&
         !isWord(text[index + 1 + item.name.length]),
     );
+    const agent = matching[0];
     if (!agent) continue;
+    // Duplicate display names are rendered as text until the sender is unambiguous.
+    // Never route a person's name to an AI with the same name.
     if (index > plainStart) parts.push({ text: text.slice(plainStart, index) });
     const end = index + agent.name.length + 1;
-    parts.push({ text: text.slice(index, end), agentId: agent.id });
+    const ambiguous = matching.filter((item) => item.name === agent.name).length > 1;
+    parts.push({
+      text: text.slice(index, end),
+      ...(ambiguous
+        ? { ambiguous: true }
+        : agent.kind && agent.kind !== "agent"
+          ? { userId: agent.id }
+          : { agentId: agent.id }),
+    });
     index = end - 1;
     plainStart = end;
   }

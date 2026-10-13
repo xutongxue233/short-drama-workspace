@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
 import type { Action } from "../../../shared/contracts";
+import { projectPermissions } from "../../../shared/project-members";
 import type { Agent, Approval, Project } from "../../../types";
 import { Button, Field, Input, Select, Textarea } from "../../../ui";
 import { AssetMedia } from "../../assets/components/AssetMedia";
@@ -81,7 +82,8 @@ function ApprovalForm({
   const [imageStates, setImageStates] = useState<
     Record<string, "loading" | "loaded" | "failed">
   >({});
-  const locked = busy || submitting || submitted;
+  const { canEdit } = projectPermissions(project);
+  const locked = busy || submitting || submitted || !canEdit;
   const fields = (approval.fields ?? []).filter((field) => field.id !== "episodeCount");
   const styleField = fields.find((field) => field.id === "style");
   const styles = styleField?.options ?? approval.options;
@@ -210,7 +212,11 @@ function ApprovalForm({
       <div className="approval-eyebrow">
         <span>
           <AtSign size={13} />
-          {currentNode ? `审核 · ${currentNode.name}` : "需要你的决定"}
+          {currentNode
+            ? `审核 · ${currentNode.name}`
+            : canEdit
+              ? "需要你的决定"
+              : "等待团队决定"}
         </span>
         <span className="approval-state">
           <Clock3 size={12} />
@@ -218,6 +224,9 @@ function ApprovalForm({
         </span>
       </div>
       <h3 id={`${id}-title`}>{approval.title}</h3>
+      {!canEdit && (
+        <p className="form-info">等待项目所有者或编辑者确认，你可以查看当前方案。</p>
+      )}
       <p>
         {isCharacterPilot
           ? "请目视检查画风与基础造型，采用后再生成其余角色。"
@@ -271,7 +280,11 @@ function ApprovalForm({
                         {asset.url?.trim() ? "定妆图" : "文字卡 · 无图片"}
                       </span>
                       <span className={asset.locked ? "is-locked" : "is-pending"}>
-                        {asset.locked ? "已锁定标准" : "待你确认"}
+                        {asset.locked
+                          ? "已锁定标准"
+                          : canEdit
+                            ? "待你确认"
+                            : "待团队确认"}
                       </span>
                       {asset.characterDesign && (
                         <div className="approval-character-badges">

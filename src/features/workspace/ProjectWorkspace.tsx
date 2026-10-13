@@ -1,5 +1,6 @@
 import type { Action, AssetSelection, Tab } from "../../shared/contracts";
-import type { Agent, Project, WorkflowNode } from "../../types";
+import type { Agent, Project, PublicUser, WorkflowNode } from "../../types";
+import { projectPermissions } from "../../shared/project-members";
 import { Badge } from "../../ui";
 import { AssetGallery } from "../assets";
 import { MemoryPanel } from "../memory";
@@ -23,6 +24,7 @@ export function ProjectWorkspace({
   onNode,
   onActivity,
   onEpisodes,
+  currentUser,
 }: {
   project: Project;
   agents: Agent[];
@@ -38,11 +40,14 @@ export function ProjectWorkspace({
   onNode: (node: WorkflowNode) => void;
   onActivity: (agentId?: string, nodeId?: string) => void;
   onEpisodes: () => void;
+  currentUser?: PublicUser;
 }) {
   const path = `/projects/${project.id}`;
+  const { canEdit, canChat } = projectPermissions(project);
   return (
     <>
       <ProjectHeader
+        currentUserId={currentUser?.id}
         project={project}
         agents={agents}
         tab={tab}
@@ -52,6 +57,13 @@ export function ProjectWorkspace({
         onInvite={onInvite}
         onEpisodes={onEpisodes}
       />
+      {!canEdit && (
+        <div className="form-info" role="status">
+          {canChat
+            ? "你可以参与群聊和查看成果；制作由项目所有者或编辑者负责。"
+            : "你拥有只读权限，可以查看群聊和项目成果。"}
+        </div>
+      )}
       {project.backgroundTask === "image-test" && (
         <div className="form-info" role="status">
           图片测试进行中，完成后可继续创作与编辑。
@@ -68,6 +80,7 @@ export function ProjectWorkspace({
         >
           {tab === "chat" ? (
             <ChatPanel
+              currentUserId={currentUser?.id}
               key={`${project.id}-${project.currentEpisode?.id ?? "current"}`}
               project={project}
               agents={agents}
@@ -85,7 +98,7 @@ export function ProjectWorkspace({
               onRun={() => void onAction(`${path}/run`)}
               onChat={() => onTabChange("chat")}
               onSource={onSource}
-              busy={busy}
+              busy={busy || !canEdit}
               onActivity={onActivity}
               onEpisodes={onEpisodes}
             />
@@ -112,20 +125,21 @@ export function ProjectWorkspace({
               projects={[project]}
               projectId={project.id}
               remote={Boolean(project.snapshot)}
-              busy={busy}
+              busy={busy || !canEdit}
               onAction={onAction}
             />
           ) : (
             <MemoryPanel
               key={project.id}
               project={project}
-              busy={busy}
+              busy={busy || !canEdit}
               onAction={onAction}
             />
           )}
         </div>
         {inspectorOpen && (
           <ProjectInspector
+            currentUserId={currentUser?.id}
             project={project}
             agents={agents}
             onTabChange={onTabChange}

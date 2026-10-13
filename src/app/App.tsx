@@ -1,5 +1,10 @@
 import { Clapperboard, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import {
+  AccountDialog,
+  AuthBoundary,
+  type AuthenticatedWorkspaceProps,
+} from "../features/auth";
 import { AgentCenter } from "../features/agents";
 import { AssetDialog, AssetLibrary } from "../features/assets";
 import {
@@ -17,6 +22,7 @@ import { ProjectWorkspace } from "../features/workspace";
 import { ModelCenter } from "../features/models";
 import { MaterialLibrary } from "../features/materials";
 import type { AssetSelection, Tab, View } from "../shared/contracts";
+import { projectPermissions } from "../shared/project-members";
 import type { Project, WorkflowNode } from "../types";
 import { Button, Dialog, DialogBody } from "../ui";
 import { HelpDialog } from "./components/HelpDialog";
@@ -28,19 +34,26 @@ import { useWorkspaceState } from "./useWorkspaceState";
 
 /** Composes application navigation and feature entry points. Feature state stays local. */
 export default function App() {
-  const [projectId, setProjectId] = useState(() => {
-    try {
-      return localStorage.getItem("yingxu-project") || "";
-    } catch {
-      return "";
-    }
-  });
+  return (
+    <AuthBoundary>
+      {(auth) => <WorkspaceApp key={auth.user.id} {...auth} />}
+    </AuthBoundary>
+  );
+}
+
+export function WorkspaceApp({
+  user,
+  onLogout,
+  onSessionChange,
+}: AuthenticatedWorkspaceProps) {
+  const [projectId, setProjectId] = useState("");
   const [view, setView] = useState<View>("workspace");
   const [tab, setTab] = useState<Tab>("chat");
   const [newProject, setNewProject] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [asset, setAsset] = useState<AssetSelection | null>(null);
   const [node, setNode] = useState<WorkflowNode | null>(null);
@@ -53,13 +66,7 @@ export default function App() {
   const { state, error, busy, toast, refresh, mutate, action, notify, dismissToast } =
     useWorkspaceState({ projectId, fullHistory: episodesOpen || activity !== null });
   const navigationProjects = state?.projectSummaries ?? state?.projects ?? [];
-  useEffect(() => {
-    try {
-      if (projectId) localStorage.setItem("yingxu-project", projectId);
-    } catch {
-      /* The active project is usable without browser storage. */
-    }
-  }, [projectId]);
+  const currentUser = state?.currentUser ?? user;
   const project = projectId
     ? state?.projects.find((item) => item.id === projectId)
     : state?.projects[0];
@@ -68,6 +75,7 @@ export default function App() {
   );
   const path = project ? `/projects/${project.id}` : "";
   const projectBusy = busy || Boolean(project?.backgroundTask);
+  const canEdit = project ? projectPermissions(project).canEdit : false;
   const chooseProject = (id: string) => {
     setProjectId(id);
     setView("workspace");
@@ -104,6 +112,7 @@ export default function App() {
         projects={navigationProjects}
         project={navigationProject}
         view={view}
+        isAdmin={currentUser.role === "admin"}
         onNavigate={setView}
         onHelp={() => setHelpOpen(true)}
         onNewProject={() => setNewProject(true)}
@@ -114,6 +123,8 @@ export default function App() {
           projects={navigationProjects}
           project={navigationProject}
           view={view}
+          user={currentUser}
+          onAccount={() => setAccountOpen(true)}
           onNewProject={() => setNewProject(true)}
           onChooseProject={chooseProject}
         />
@@ -123,11 +134,11 @@ export default function App() {
             <button onClick={() => void refresh()}>重试</button>
           </div>
         )}
-        {view === "agents" ? (
+        {view === "agents" && currentUser.role === "admin" ? (
           <div key="agents" className="management-scroll">
             <AgentCenter state={state} mutate={mutate} notify={notify} />
           </div>
-        ) : view === "models" ? (
+        ) : view === "models" && currentUser.role === "admin" ? (
           <div key="models" className="management-scroll">
             <ModelCenter state={state} mutate={mutate} notify={notify} />
           </div>
@@ -151,6 +162,7 @@ export default function App() {
         ) : project ? (
           <ProjectWorkspace
             project={project}
+            currentUser={currentUser}
             agents={state.agents}
             tab={tab}
             onTabChange={setTab}
@@ -203,7 +215,7 @@ export default function App() {
           }}
         />
       )}
-      {sourceOpen && project && (
+      {sourceOpen && project && canEdit && (
         <SourceDialog
           project={project}
           onClose={() => setSourceOpen(false)}
@@ -218,6 +230,7 @@ export default function App() {
         <InviteAgentsDialog
           project={project}
           agents={state.agents}
+          currentUser={currentUser}
           busy={busy}
           onAction={action}
           onClose={() => setInviteOpen(false)}
@@ -230,6 +243,7 @@ export default function App() {
           item={activeAsset}
           readOnly={
             !assetProject ||
+            !projectPermissions(assetProject).canEdit ||
             assetProject.running ||
             Boolean(assetProject.backgroundTask) ||
             activeAsset.tags.includes("历史版本")
@@ -309,6 +323,14 @@ export default function App() {
         </Dialog>
       )}
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
+      {accountOpen && (
+        <AccountDialog
+          user={currentUser}
+          onClose={() => setAccountOpen(false)}
+          onLogout={onLogout}
+          onSessionChange={onSessionChange}
+        />
+      )}
     </div>
   );
 }

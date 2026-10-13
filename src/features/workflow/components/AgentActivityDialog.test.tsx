@@ -493,9 +493,9 @@ describe("Agent activity dialog", () => {
     const log = screen.getByRole("list", { name: "工作记录" });
     const records = within(log).getAllByRole("listitem");
     expect(within(records[0]).getByText("已确认")).toBeTruthy();
-    expect(within(records[0]).getByText("我")).toBeTruthy();
+    expect(within(records[0]).getByText("历史用户")).toBeTruthy();
     expect(within(records[0]).queryByText("真人")).toBeNull();
-    expect(records[0].querySelector(".studio-member-kind")).toBeNull();
+    expect(records[0].querySelector(".studio-member-kind")?.textContent).toBe("用户");
     expect(within(records[1]).getByText("任务交接")).toBeTruthy();
     expect(within(records[1]).getByText("依据历史记录整理")).toBeTruthy();
     expect(within(records[2]).getByText("开始执行")).toBeTruthy();
@@ -507,8 +507,8 @@ describe("Agent activity dialog", () => {
     expect(within(evidence).getByText("已确认「角色定妆」。全部已验收。")).toBeTruthy();
     expect(within(evidence).getByText("开始「剧本改编」。已接收。")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("成员"));
-    fireEvent.click(screen.getByRole("option", { name: /^我$/ }));
-    expect(screen.getByRole("combobox", { name: "成员" }).textContent).toBe("我");
+    fireEvent.click(screen.getByRole("option", { name: /^历史用户$/ }));
+    expect(screen.getByRole("combobox", { name: "成员" }).textContent).toBe("历史用户");
     expect(within(log).getAllByRole("listitem")).toHaveLength(1);
     expect(within(log).getByText("已确认")).toBeTruthy();
   });

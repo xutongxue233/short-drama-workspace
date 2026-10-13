@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
@@ -47,6 +48,7 @@ async function fixture(t) {
     const listener = service.app.listen(0, "127.0.0.1", () => resolve(listener));
   });
   const base = `http://127.0.0.1:${server.address().port}/api`;
+  const { fetch } = await authenticatedFetch(base);
   t.after(async () => {
     service.close();
     await new Promise((resolve) => {

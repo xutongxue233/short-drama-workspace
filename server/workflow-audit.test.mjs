@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -418,6 +419,11 @@ test("video task archival rejects stale IDs, rolls back failed saves, and never 
     runtime.close();
     await new Promise((resolve) => server.close(resolve));
   });
+  failed = false;
+  const { fetch } = await authenticatedFetch(
+    `http://127.0.0.1:${server.address().port}`,
+  );
+  failed = true;
   const archive = async (body) =>
     fetch(
       `http://127.0.0.1:${server.address().port}/api/projects/${project.id}/video-task/archive`,

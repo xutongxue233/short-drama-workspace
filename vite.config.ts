@@ -23,7 +23,13 @@ export default defineConfig(() => {
       host: "127.0.0.1",
       port: port(env.WEB_PORT, 5173, "WEB_PORT"),
       strictPort: true,
-      proxy: { "/api": `http://127.0.0.1:${port(env.API_PORT, 3001, "API_PORT")}` },
+      proxy: {
+        "/api": {
+          target: `http://127.0.0.1:${port(env.API_PORT, 3001, "API_PORT")}`,
+          // Preserve the browser's host so the API can enforce exact origin checks.
+          changeOrigin: false,
+        },
+      },
     },
     build: {
       outDir: "dist",

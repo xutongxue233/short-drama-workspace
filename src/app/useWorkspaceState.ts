@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { request } from "../api";
+import { ApiError, request } from "../api";
 import type { Action, ToastMessage } from "../shared/contracts";
 import type { WorkspaceState } from "../types";
 
@@ -75,6 +75,15 @@ export function useWorkspaceState(scope?: {
           }
         }
       } catch (error) {
+        if (
+          isCurrent() &&
+          error instanceof ApiError &&
+          [401, 403].includes(error.status)
+        ) {
+          setState(null);
+          for (const pending of synchronizations.current) pending.reject(error);
+          synchronizations.current.clear();
+        }
         if (isCurrent() && seq === revision.current && !controller.signal.aborted)
           setError(
             `${synchronizations.current.size ? "修改已保存，正在重新同步，请勿重复提交。" : ""}${(error as Error).message}`,

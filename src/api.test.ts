@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, request } from "./api";
+import { ApiError, onSessionExpired, request, setApiSession } from "./api";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setApiSession();
+});
 
 describe("API boundary", () => {
   it("serializes mutations and forwards cancellation without persisting credentials", async () => {
@@ -15,6 +18,7 @@ describe("API boundary", () => {
     ).resolves.toEqual({ id: "project-1" });
     expect(fetchMock).toHaveBeenCalledWith("/api/projects", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: '{"name":"故事"}',
       signal: controller.signal,
@@ -26,6 +30,90 @@ describe("API boundary", () => {
     vi.stubGlobal("fetch", fetchMock);
     await request("/state", undefined, "GET");
     expect(fetchMock.mock.calls[0][1]).not.toHaveProperty("body");
+  });
+
+  it("keeps CSRF in memory and sends it only on writes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response("{}")));
+    vi.stubGlobal("fetch", fetchMock);
+    setApiSession("csrf-secret");
+    await request("/projects", {}, "POST");
+    await request("/state", undefined, "GET");
+    expect(fetchMock.mock.calls[0][1].headers["X-CSRF-Token"]).toBe("csrf-secret");
+    expect(fetchMock.mock.calls[1][1].headers["X-CSRF-Token"]).toBeUndefined();
+  });
+
+  it("notifies expiry immediately even if the 401 response is HTML", async () => {
+    const expired = vi.fn();
+    const unsubscribe = onSessionExpired(expired);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("expired", { status: 401 })),
+    );
+    await expect(request("/state", undefined, "GET")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(expired).toHaveBeenCalledOnce();
+    unsubscribe();
+  });
+
+  it("ignores an old account's late 401 instead of logging out the new account", async () => {
+    let complete!: (value: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(
+        new Promise<Response>((resolve) => {
+          complete = resolve;
+        }),
+      ),
+    );
+    const expired = vi.fn();
+    const unsubscribe = onSessionExpired(expired);
+    const pending = request("/state", undefined, "GET");
+    setApiSession("new-account-token");
+    complete(new Response("{}", { status: 401 }));
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(expired).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it("rejects old account data after a session change while parsing the response", async () => {
+    let complete!: (value: unknown) => void;
+    const parsing = new Promise((resolve) => {
+      complete = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ status: 200, ok: true, json: () => parsing }),
+    );
+    const pending = request("/state", undefined, "GET");
+    await Promise.resolve();
+    setApiSession("new-account-token");
+    complete({ projects: [{ name: "private-old-account" }] });
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("rejects a workspace belonging to a different cookie account before rendering it", async () => {
+    const expired = vi.fn();
+    const unsubscribe = onSessionExpired(expired);
+    setApiSession("old-token", "old-user");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            currentUser: { id: "another-user" },
+            projects: [{ id: "secret" }],
+          }),
+        ),
+      ),
+    );
+    await expect(request("/state?compact=1", undefined, "GET")).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(expired).toHaveBeenCalledOnce();
+    unsubscribe();
   });
 
   it("preserves actionable API validation errors and their status", async () => {

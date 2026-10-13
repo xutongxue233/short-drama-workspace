@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./test-support/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, unlink } from "node:fs/promises";
@@ -394,6 +395,7 @@ test("HTTP media routes support video ranges, downloads, project isolation and i
     await rm(dataDir, { recursive: true, force: true });
   });
   const base = `http://127.0.0.1:${server.address().port}`;
+  const { fetch } = await authenticatedFetch(base);
   const project = state.projects[0];
   const videoBytes = Buffer.concat([
     Buffer.from([0, 0, 0, 24]),

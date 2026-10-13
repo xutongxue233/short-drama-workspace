@@ -1,11 +1,8 @@
 import type { Element, Root, Text } from "hast";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { splitMentions } from "../shared/mentions";
-import type { Agent } from "../types";
+import { splitMentions, type MentionAgent } from "../shared/mentions";
 import "./text-content.css";
-
-type MentionAgent = Pick<Agent, "id" | "name">;
 
 /** Work on parsed text, so mentions never alter Markdown syntax or code samples. */
 function rehypeMentions(agents: MentionAgent[]) {
@@ -19,9 +16,9 @@ function rehypeMentions(agents: MentionAgent[]) {
         }
         if (child.type !== "text") continue;
         const parts = splitMentions(child.value, agents);
-        if (!parts.some((part) => part.agentId)) continue;
+        if (!parts.some((part) => part.agentId || part.userId)) continue;
         const nodes: (Element | Text)[] = parts.map((part) =>
-          part.agentId
+          part.agentId || part.userId
             ? {
                 type: "element",
                 tagName: "span",

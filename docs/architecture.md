@@ -1,6 +1,6 @@
 # 架构说明
 
-这是一个单用户本地应用：React 工作台通过 `/api` 使用 Express，业务状态以 SQLite 事务保存检查点。工程保留单个 npm 项目，使开发、打包和部署入口一致。
+这是一个支持多账号和项目成员权限的工作台：React 工作台通过 `/api` 使用 Express，业务状态以 SQLite 事务保存检查点。工程保留单个 npm 项目，使开发、打包和部署入口一致。
 
 ```mermaid
 flowchart LR
@@ -48,7 +48,7 @@ flowchart LR
 
 `index.mjs` 只启动监听器并处理关停。`app.mjs` 创建 Express 应用并注入配置、存储、工作流和聊天服务；导入模块不会自动监听端口或创建数据库。测试可注入隔离存储，并使用仅测试目录中的本地模型服务，不需要启动真实项目服务或调用付费模型。
 
-`routes/` 解析 HTTP 输入、调用业务逻辑并返回响应；`http/` 统一处理输入校验、错误格式和本地访问限制。模型配置路由在 `routes/providers.mjs`，不是适配器的一部分。
+`routes/` 解析 HTTP 输入、调用业务逻辑并返回响应；`http/` 统一处理输入校验、错误格式和来源限制；鉴权中间件在业务路由之前校验会话、CSRF 和项目权限。账号管理员不能绕过项目成员权限。模型配置路由在 `routes/providers.mjs`，不是适配器的一部分。
 
 ## SQLite 存储与升级
 
@@ -76,15 +76,15 @@ flowchart LR
 
 只读接口集中在 `routes/queries.mjs`，`services/workspace-snapshot.mjs` 组合公开项目、运行时任务状态和导航摘要。生产存储的消息、素材、资产和数量查询直接使用 SQLite；仅测试注入的简化存储允许数组后备实现。`chatPending`、`backgroundTask` 与 `workflowIssues` 由运行时投影，模型服务沿用 `publicProvider` 脱敏，接口不返回 API Key。
 
-| GET 接口                                                                     | 返回范围                                                                                                                                            |
-| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/state`                                                                 | 兼容旧客户端的完整工作区，包含所有项目、消息、素材和剧集归档                                                                                        |
-| `/api/state?compact=1&projectId=<id>`                                        | `projects` 只含所选项目，`projectSummaries` 包含全部项目的导航元信息与计数；省略 `projectId` 时选择首个项目，明确传入不存在的 ID 时 `projects` 为空 |
-| `/api/state?compact=1&projectId=<id>&history=full`                           | 所选项目恢复完整消息和剧集归档，供工作记录与档案弹窗读取；项目顶层 `materials` 仍为空数组                                                           |
-| `/api/projects/:id`                                                          | 一个完整公开项目及计数、运行时任务状态                                                                                                              |
-| `/api/projects/:id/messages?limit=50&before=<index>`                         | 本集消息，按原始序号向前分页                                                                                                                        |
-| `/api/projects/:id/materials?limit=24&offset=0&type=all&status=all&q=<text>` | 一个项目内筛选后的素材页                                                                                                                            |
-| `/api/projects/:id/assets?limit=24&offset=0&type=all&q=<text>`               | 一个项目内筛选后的资产页                                                                                                                            |
+| GET 接口                                                                     | 返回范围                                                                                                                                                    |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/state`                                                                 | 当前登录用户已加入项目的完整工作区，包含这些项目的消息、素材和剧集归档                                                                                      |
+| `/api/state?compact=1&projectId=<id>`                                        | `projects` 只含所选项目，`projectSummaries` 仅包含用户已加入项目的导航元信息与计数；省略 `projectId` 时选择首个项目，明确传入不存在的 ID 时 `projects` 为空 |
+| `/api/state?compact=1&projectId=<id>&history=full`                           | 所选项目恢复完整消息和剧集归档，供工作记录与档案弹窗读取；项目顶层 `materials` 仍为空数组                                                                   |
+| `/api/projects/:id`                                                          | 一个完整公开项目及计数、运行时任务状态                                                                                                                      |
+| `/api/projects/:id/messages?limit=50&before=<index>`                         | 本集消息，按原始序号向前分页                                                                                                                                |
+| `/api/projects/:id/materials?limit=24&offset=0&type=all&status=all&q=<text>` | 一个项目内筛选后的素材页                                                                                                                                    |
+| `/api/projects/:id/assets?limit=24&offset=0&type=all&q=<text>`               | 一个项目内筛选后的资产页                                                                                                                                    |
 
 默认精简项目仍包含原文、节点、资产、记忆和当前集边界；`materials` 和 `episodeArchive` 为空数组，`messages` 只含本集最后 50 条。`snapshot.history` 区分 `recent` 与 `full`；`messagePage` 给出本集消息总量、首条返回消息的绝对 `startIndex` 和下一页的 `nextBefore`。空数组表示此快照未加载该集合，不表示项目没有历史或素材；应使用 `counts`。项目和摘要的 `counts` 包含 `assets`、`materials`、`savedMaterials`、`episodes`、`messages`，其中 `episodes` 包含当前集与归档集，`messages` 是整个项目的消息总数。摘要中的 `currentEpisode` 仅提供 ID、集号、标题与创建时间。
 
@@ -144,6 +144,6 @@ flowchart LR
 
 `Message.event` 为新工作记录保存事件类型、执行批次、审批关联及交接双方。节点配置和输入校验通过、实际开始模型任务时才记执行与交接；请求审批和批准是独立事件，同节点样板续做与失败重试不记为跨节点交接。旧消息保持原样，由前端优先解析明确的事件、再读取原文线索；有证据整理的旧交接展示来源标记，并关联交出方与接手方的成员日志。
 
-`shared/project-members.ts` 是群成员展示的统一入口，组合本地用户 `user`（我 / 项目负责人）与已加入的 Agent，并去除重复及无效 ID。`MemberIdentity` 统一头像、姓名和岗位，仅为 Agent 展示身份标签，供项目头部、侧栏、成员弹窗、群聊和工作记录复用。展示层不创建多人账号或伪造在线状态。
+`shared/project-members.ts` 组合项目账号参与者与已加入的 Agent。账号类型（真人 / Bot）、项目权限（负责人 / 编辑 / 成员 / 只读）和可选分工分别保存、展示；普通用户不默认拥有专业角色。`MemberIdentity` 统一身份标签和头像。消息 `sender` 由服务端登录身份设置，只有 ID 匹配才显示「我」；旧的 `user` 消息显示为历史用户，避免冒充当前登录者。
 
 `providers/models.mjs` 处理只读模型发现，路由为 `POST /api/providers/models`，服务端合并现有服务与草稿并保护旧密钥的原始目标地址。远程列表与预设的来源分开返回。前端 `features/models/ModelPicker` 复用 `ui/Select` 搜索控件，按配置隔离结果并取消过期请求；模型服务与 Agent 配置共用同一选择逻辑。

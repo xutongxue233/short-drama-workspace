@@ -1,6 +1,7 @@
 import { now, uid } from "../seed.mjs";
 import { briefDescription } from "./brief.mjs";
 import { episodeDecisions, episodeMessages } from "./episode-scope.mjs";
+import { currentRequest } from "../auth/request-context.mjs";
 
 export function addMessage(project, agentId, content, type = "text", nodeId, event) {
   const message = {
@@ -10,6 +11,8 @@ export function addMessage(project, agentId, content, type = "text", nodeId, eve
     type,
     createdAt: now(),
   };
+  const actor = currentRequest()?.actor;
+  if (agentId === "user" && actor) message.sender = { ...actor };
   if (nodeId) message.nodeId = nodeId;
   if (event) message.event = event;
   project.messages.push(message);
@@ -212,7 +215,7 @@ export function buildContext(project) {
       .slice(-8)
       .map(
         (message) =>
-          `${message.agentId}：${approvedScript && message.nodeId === "adaptation" && message.type === "result" ? "剧本产物已保存；请以「当前已批准剧本」版本为准，历史草稿不能覆盖该标准。" : message.content.slice(0, 650)}`,
+          `${message.sender ? `${message.sender.displayName}（${message.sender.kind === "bot" ? "Bot" : "真实用户"}，${message.sender.id}）` : message.agentId === "user" ? "历史用户" : message.agentId}：${approvedScript && message.nodeId === "adaptation" && message.type === "result" ? "剧本产物已保存；请以「当前已批准剧本」版本为准，历史草稿不能覆盖该标准。" : message.content.slice(0, 650)}`,
       )
       .join("\n")}`,
   ];

@@ -1,6 +1,6 @@
 import { ChevronRight, Plus } from "lucide-react";
 import type { View } from "../../shared/contracts";
-import type { ProjectSummary } from "../../types";
+import type { ProjectSummary, PublicUser } from "../../types";
 import { IconButton, Select } from "../../ui";
 
 export function Topbar({
@@ -9,12 +9,16 @@ export function Topbar({
   view,
   onNewProject,
   onChooseProject,
+  user,
+  onAccount,
 }: {
   projects: ProjectSummary[];
   project?: ProjectSummary;
   view: View;
   onNewProject: () => void;
   onChooseProject: (id: string) => void;
+  user?: PublicUser;
+  onAccount?: () => void;
 }) {
   return (
     <header className="topbar">
@@ -57,6 +61,19 @@ export function Topbar({
             <Plus size={18} />
           </IconButton>
         </div>
+        {user && (
+          <button
+            className="account-trigger"
+            onClick={onAccount}
+            aria-label={`账户与安全：${user.displayName}`}
+            title="账户与安全"
+          >
+            <span className="account-trigger-avatar" aria-hidden="true">
+              {user.displayName.slice(0, 1)}
+            </span>
+            <span>{user.displayName}</span>
+          </button>
+        )}
       </div>
     </header>
   );

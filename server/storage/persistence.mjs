@@ -74,7 +74,8 @@ function saveBackups(db, backups) {
 }
 
 /** Schema and legacy content migrations commit together, or leave the old DB intact. */
-export function createPersistence(db, { seed, migrations = [] }) {
+export function createPersistence(db, { seed, migrations = [], credentials }) {
+  const encode = (state) => encodeState(credentials ? credentials.seal(state) : state);
   const version = db.prepare("PRAGMA user_version").get().user_version;
   if (version !== 0 && version !== SCHEMA_VERSION)
     throw new Error(
@@ -94,7 +95,7 @@ export function createPersistence(db, { seed, migrations = [] }) {
     state = original ? JSON.parse(original.value) : seed();
     const backups = migrateState(state, migrations);
     if (original) backups.unshift({ id: STORAGE_MIGRATION, value: original.value });
-    const next = encodeState(state);
+    const next = encode(state);
     transaction(db, () => {
       createSchema(db);
       saveBackups(db, backups);
@@ -115,10 +116,11 @@ export function createPersistence(db, { seed, migrations = [] }) {
       throw new Error("数据库迁移记录不完整，请从备份恢复。");
     cache = readRows(db);
     state = decodeState(cache);
+    credentials?.open(state);
     write = createWriter(db);
     const backups = migrateState(state, migrations);
     if (backups.length) {
-      const next = encodeState(state);
+      const next = encode(state);
       transaction(db, () => {
         saveBackups(db, backups);
         write(cache, next);
@@ -129,7 +131,7 @@ export function createPersistence(db, { seed, migrations = [] }) {
   return {
     state,
     save() {
-      const next = encodeState(state);
+      const next = encode(state);
       transaction(db, () => write(cache, next));
       // A failed transaction must leave this baseline unchanged for the next retry.
       cache = next;

@@ -116,3 +116,30 @@ describe("recovering uncertain generation tasks", () => {
     expect(screen.queryByRole("button", { name: "从此节点重新制作" })).toBeNull();
   });
 });
+
+it.each(["member", "viewer"] as const)(
+  "lets %s inspect and close a node without permitting mutations",
+  (access) => {
+    const onAction = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <NodeDialog
+        node={node}
+        project={{ ...project, currentUserAccess: access }}
+        agents={[]}
+        busy={false}
+        onAction={onAction}
+        onClose={onClose}
+      />,
+    );
+    expect(
+      (screen.getByRole("button", { name: "归档旧视频任务" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(screen.queryByRole("button", { name: "从此节点重新制作" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "归档旧视频任务" }));
+    expect(onAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "返回工作台" }));
+    expect(onClose).toHaveBeenCalledOnce();
+  },
+);

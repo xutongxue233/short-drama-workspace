@@ -4,7 +4,11 @@ import { resolve } from "node:path";
 import { createStore } from "./store.mjs";
 import { readConfig } from "./config.mjs";
 import { HttpError } from "./http/errors.mjs";
-import { localOnly, requireJsonBody, errorHandler } from "./http/middleware.mjs";
+import { requestBoundary, requireJsonBody, errorHandler } from "./http/middleware.mjs";
+import { createAuthService } from "./auth/service.mjs";
+import { mountAuthorization } from "./auth/authorization.mjs";
+import { mountPublicAuthRoutes, mountPrivateAuthRoutes } from "./routes/auth.mjs";
+import { mountParticipantRoutes } from "./routes/participants.mjs";
 import { createWorkflow } from "./workflow.mjs";
 import { createChatService } from "./services/chat.mjs";
 import { createMaterialService } from "./services/materials.mjs";
@@ -24,7 +28,12 @@ export function createApp({
   store = createStore({ filename: config.databaseFile }),
 } = {}) {
   const app = express();
-  const { getState, save } = store;
+  // Forwarded addresses are authoritative only behind an explicitly trusted,
+  // same-host proxy, which must overwrite client-supplied forwarding headers.
+  app.set("trust proxy", config.trustProxy && config.publicOrigin ? "loopback" : false);
+  const { getState } = store;
+  const auth = createAuthService({ getState, save: store.save, config });
+  const save = auth.saveWithAudit;
   const materials = createMaterialService({ getState, save, dataDir: config.dataDir });
   const workflow = createWorkflow({ getState, save, materials });
   const chat = createChatService({ getState, save, workflow, materials });
@@ -42,9 +51,11 @@ export function createApp({
     chat,
     materials,
     findProject,
+    auth,
+    config,
   };
   app.disable("x-powered-by");
-  app.use(localOnly);
+  app.use(requestBoundary(config));
   app.use(express.json({ limit: "4mb" }));
   // A request body may finish arriving after close() has released the store.
   // Check after parsing so queued requests cannot enter any business route.
@@ -57,6 +68,11 @@ export function createApp({
   app.get("/api/health", (_req, res) =>
     res.json({ ok: true, service: "frameflow-workbench", storage: "sqlite" }),
   );
+  mountPublicAuthRoutes(app, dependencies);
+  app.use("/api", auth.middleware);
+  mountAuthorization(app, dependencies);
+  mountPrivateAuthRoutes(app, dependencies);
+  mountParticipantRoutes(app, dependencies);
   mountQueryRoutes(app, dependencies);
   mountProjectsRoutes(app, dependencies);
   mountWorkflowRoutes(app, dependencies);

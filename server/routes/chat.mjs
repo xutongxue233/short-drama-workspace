@@ -11,6 +11,8 @@ export function mountChatRoutes(app, { findProject, chat }) {
     try {
       const message = await chat.sendMessage(project, bodyObject(req), {
         signal: controller.signal,
+        sender: req.auth.user,
+        access: req.projectAccess,
       });
       if (!res.destroyed) res.status(201).json(message);
     } finally {

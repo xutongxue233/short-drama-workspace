@@ -30,6 +30,7 @@ function history(
   messages: Message[],
   pendingAgentId?: string,
   patch: Partial<Project> = {},
+  currentUserId?: string,
 ) {
   const project: Project = {
     id: "chat-test",
@@ -59,6 +60,7 @@ function history(
       onNode={vi.fn()}
       onAssets={vi.fn()}
       onSource={onSource}
+      currentUserId={currentUserId}
       historyRef={null}
       pendingAgentId={pendingAgentId}
     />,
@@ -78,8 +80,8 @@ describe("chat response visibility", () => {
     );
     expect(screen.queryByText("短剧测试项目")).toBeNull();
     const rows = view.container.querySelectorAll("article.message");
-    expect(rows[0].querySelector("header")?.textContent).toContain("我项目负责人");
-    expect(rows[0].querySelector(".studio-member-kind")).toBeNull();
+    expect(rows[0].querySelector("header")?.textContent).toContain("历史用户用户");
+    expect(rows[0].querySelector(".studio-member-kind")?.textContent).toBe("用户");
     expect(rows[1].querySelector("header")?.textContent).toContain(
       "总制片Agent制作统筹",
     );
@@ -181,4 +183,58 @@ describe("chat response visibility", () => {
       "总制片",
     );
   });
+});
+
+it("labels real senders individually and only marks the signed-in account as self", () => {
+  const view = history(
+    [
+      message({
+        id: "me",
+        agentId: "user",
+        sender: { id: "alice", displayName: "小林", kind: "human" },
+        content: "我来整理",
+      }),
+      message({
+        id: "other",
+        agentId: "user",
+        sender: { id: "bob", displayName: "陈老师", kind: "human" },
+        content: "剪辑完成",
+      }),
+      message({
+        id: "bot",
+        agentId: "user",
+        sender: { id: "notify", displayName: "通知助手", kind: "bot" },
+        content: "素材已到齐",
+      }),
+    ],
+    undefined,
+    {
+      participants: [
+        {
+          userId: "alice",
+          username: "alice",
+          displayName: "小林",
+          kind: "human",
+          access: "member",
+        },
+        {
+          userId: "bob",
+          username: "bob",
+          displayName: "陈老师",
+          kind: "human",
+          access: "editor",
+          jobTitle: "剪辑师",
+        },
+      ],
+    },
+    "alice",
+  );
+  const rows = view.container.querySelectorAll("article.message");
+  expect(rows[0].classList.contains("from-user")).toBe(true);
+  expect(rows[0].querySelector("header")?.textContent).toContain("小林我用户");
+  expect(rows[0].querySelector(".message-member-role")).toBeNull();
+  expect(rows[1].classList.contains("from-user")).toBe(false);
+  expect(rows[1].querySelector("header")?.textContent).toContain("陈老师用户剪辑师");
+  expect(rows[2].querySelector(".studio-member-kind")?.textContent).toBe("Bot");
+  expect(view.container.querySelectorAll(".studio-member-self")).toHaveLength(1);
 });
