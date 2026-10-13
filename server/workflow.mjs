@@ -141,7 +141,19 @@ export function createWorkflow({ getState, save, materials }) {
     if (!agent.enabled) throw new HttpError(409, "请先在 Agent 中心启用此 Agent");
     if (!project.members.includes(agentId)) {
       project.members.push(agentId);
-      addMessage(project, "system", `总制片邀请了 ${agent.name} 加入项目群`, "system");
+      addMessage(
+        project,
+        "system",
+        `总制片邀请了 ${agent.name} 加入项目群`,
+        "system",
+        undefined,
+        {
+          kind: "progress",
+          phase: "member-invited",
+          fromAgentId: "producer",
+          toAgentId: agentId,
+        },
+      );
     }
     return agent;
   }
