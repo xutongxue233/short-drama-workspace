@@ -104,6 +104,7 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
         <AgentEditor
           agent={editing}
           providers={state.providers}
+          skills={state.skills ?? []}
           mutate={mutate}
           notify={notify}
           onClose={() => setEditing(null)}

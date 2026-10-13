@@ -211,6 +211,11 @@ export function AgentActivityDialog({
                         <span className="activity-history-label">依据历史记录整理</span>
                       )}
                       {entry.runId && <span>执行批次：{entry.runId.slice(-8)}</span>}
+                      {entry.skills?.map((skill) => (
+                        <span key={skill.id}>
+                          技能：${skill.name} · v{skill.version}
+                        </span>
+                      ))}
                     </div>
                     <details
                       className="activity-content"

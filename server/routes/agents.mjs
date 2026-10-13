@@ -1,6 +1,7 @@
 import { transactionalRoute } from "../state-transaction.mjs";
 import { HttpError } from "../http/errors.mjs";
 import { bodyObject, textInput, booleanInput } from "../http/validation.mjs";
+import { skillIdsInput } from "../skills.mjs";
 
 export function mountAgentsRoutes(app, { getState, save }) {
   app.patch(
@@ -25,6 +26,8 @@ export function mountAgentsRoutes(app, { getState, save }) {
       }
       if (input.enabled !== undefined)
         patch.enabled = booleanInput(input.enabled, "启用状态");
+      if (input.skillIds !== undefined)
+        patch.skillIds = skillIdsInput(input.skillIds, getState());
       if (
         patch.providerId &&
         !getState().providers.some((provider) => provider.id === patch.providerId)

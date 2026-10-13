@@ -72,6 +72,16 @@ flowchart LR
 
 启动仍读取所有实体并还原完整内存对象。业务服务沿用同步修改后调用 `save()` 的契约；每次保存扫描并序列化所有实体，与上次成功提交的行比较，只对变化行执行 INSERT/UPDATE/DELETE，多个表的变化在同一事务中提交。失败不更新比较基线，后续重试可以重新保存。这减少 SQLite 写入量，但没有消除全量内存占用和实体比较成本；当前不是惰性项目存储，也不支持多个应用实例同时写入。
 
+## 技能配置与调用
+
+`server/skills.mjs` 定义技能输入校验、`SKILL.md` 解析/导出、有效绑定解析和调用快照。技能形如 `{ id, name, description, instructions, enabled, version, createdAt, updatedAt }`，Agent 使用可选 `skillIds`。工作区共享的 `skills` 配置保存在 v1 `workspace_metadata.value`，利用现有编解码器保留扩展字段的能力，无需改表或改 schema 版本。旧工作区缺省技能集合在 API 中映射为 `[]`，首次保存技能后持久化；Agent 的绑定随已有实体保存。
+
+`routes/skills.mjs` 提供 `GET/POST /api/skills`、`PATCH/DELETE /api/skills/:id`、只解析不保存的 `POST /api/skills/parse`（`{ markdown }`），以及 `GET /api/skills/:id/export`（`{ filename, content }`）。修改、删除请求必须携带当前 `version`，不匹配返回 409，保存失败恢复内存状态。删除和清理绑定在同一次保存中完成。`PATCH /api/agents/:id` 可更新 `skillIds`，绑定允许停用技能，但不能指向不存在的技能。
+
+聊天请求可附加 `skillIds` 或在内容中显式写 `$skill-name`。聊天服务先验证、合并、去重和复制技能，再记录消息及调用模型；显式技能消息进入讨论模式。Agent 的启用绑定用于文字工作流和角色文字规划；技能正文附加在任务 prompt 中，沿用现有系统指令与审批约束。单次合计最多 8 个技能，指令各最多 12000 字，避免超过模型适配层的系统提示词限制。实际调用记录在 `Message.event.skills` 保存 `{ id, name, version }`，新编辑不改变执行中的请求快照。
+
+角色规划的检查点包含有效技能内容及版本，修改技能后重新规划，避免复用过时计划。媒体请求维持既有提示词和恢复标识。技能仅用于指令复用，不引入脚本执行、任意文件访问或工具调度。
+
 ## 项目快照与分页接口
 
 只读接口集中在 `routes/queries.mjs`，`services/workspace-snapshot.mjs` 组合公开项目、运行时任务状态和导航摘要。生产存储的消息、素材、资产和数量查询直接使用 SQLite；仅测试注入的简化存储允许数组后备实现。`chatPending`、`backgroundTask` 与 `workflowIssues` 由运行时投影，模型服务沿用 `publicProvider` 脱敏，接口不返回 API Key。

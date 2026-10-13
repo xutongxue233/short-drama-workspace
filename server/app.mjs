@@ -14,6 +14,7 @@ import { mountWorkflowRoutes } from "./routes/workflow.mjs";
 import { mountMemoryRoutes } from "./routes/memory.mjs";
 import { mountAssetsRoutes } from "./routes/assets.mjs";
 import { mountAgentsRoutes } from "./routes/agents.mjs";
+import { mountSkillsRoutes } from "./routes/skills.mjs";
 import { mountChatRoutes } from "./routes/chat.mjs";
 import { mountProviderRoutes } from "./routes/providers.mjs";
 import { mountMaterialsRoutes } from "./routes/materials.mjs";
@@ -63,6 +64,7 @@ export function createApp({
   mountMemoryRoutes(app, dependencies);
   mountAssetsRoutes(app, dependencies);
   mountAgentsRoutes(app, dependencies);
+  mountSkillsRoutes(app, dependencies);
   mountChatRoutes(app, dependencies);
   const providerRoutes = mountProviderRoutes(app, dependencies);
   mountMaterialsRoutes(app, dependencies);

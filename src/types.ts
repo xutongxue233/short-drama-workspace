@@ -9,7 +9,19 @@ export interface Agent {
   providerId: string;
   model: string;
   systemPrompt: string;
+  skillIds?: string[];
 }
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  instructions: string;
+  enabled: boolean;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+export type SkillUsage = Pick<Skill, "id" | "name" | "version">;
 export interface Provider {
   id: string;
   name: string;
@@ -29,6 +41,7 @@ export interface Message {
   nodeId?: string;
   replyTo?: string;
   event?: {
+    skills?: SkillUsage[];
     kind:
       | "start"
       | "result"
@@ -69,6 +82,7 @@ export interface WorkflowNode {
     taskId: string;
   };
   characterGeneration?: {
+    skills?: SkillUsage[];
     id: string;
     key: string;
     stage?: "pilot" | "batch";
@@ -234,6 +248,7 @@ export interface Project {
   workflowIssues?: { nodeId: string; agentId: string; message: string }[];
 }
 export interface WorkspaceState {
+  skills?: Skill[];
   projects: Project[];
   projectSummaries?: ProjectSummary[];
   agents: Agent[];

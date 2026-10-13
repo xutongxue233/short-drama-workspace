@@ -1,5 +1,6 @@
 import {
   Bot,
+  BookOpen,
   CircleHelp,
   Clapperboard,
   Film,
@@ -95,6 +96,16 @@ export function Sidebar({
         >
           <Bot size={18} />
           <span className="nav-text">Agent 中心</span>
+        </button>
+        <button
+          title="技能库"
+          aria-label="技能库"
+          aria-current={view === "skills" ? "page" : undefined}
+          className={view === "skills" ? "active" : ""}
+          onClick={() => onNavigate("skills")}
+        >
+          <BookOpen size={18} />
+          <span className="nav-text">技能库</span>
         </button>
         <button
           title="模型接入"

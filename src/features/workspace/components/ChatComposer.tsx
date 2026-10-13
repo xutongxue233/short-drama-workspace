@@ -16,7 +16,7 @@ import {
   splitMentions,
   type MentionQuery,
 } from "../../../shared/mentions";
-import type { Agent, Project } from "../../../types";
+import type { Agent, Project, Skill } from "../../../types";
 import { IconButton, Select } from "../../../ui";
 
 const draftSentEvent = "yingxu:chat-draft-sent";
@@ -45,6 +45,7 @@ function readDraft(projectId: string): { text: string; intent: ChatIntent } {
 export function ChatComposer({
   project,
   agents,
+  skills = [],
   busy,
   onAction,
   onSource,
@@ -54,6 +55,7 @@ export function ChatComposer({
 }: {
   project: Project;
   agents: Agent[];
+  skills?: Skill[];
   busy: boolean;
   onAction: Action;
   onSource: () => void;
@@ -83,6 +85,12 @@ export function ChatComposer({
   const mentions = parts.filter((part) => part.agentId);
   const target = mentions[0]?.agentId;
   const targetAgent = members.find((agent) => agent.id === target);
+  const availableSkills = skills.filter((skill) => skill.enabled);
+  const automaticSkills = availableSkills.filter((skill) =>
+    (
+      targetAgent ?? members.find((agent) => agent.id === "producer")
+    )?.skillIds?.includes(skill.id),
+  );
   const candidates = mentionQuery
     ? members.filter((agent) =>
         `${agent.name} ${agent.role}`
@@ -192,6 +200,20 @@ export function ChatComposer({
       .map((part) => (part.agentId === target ? "" : part.text))
       .join("");
     nextSelection.current = value.length;
+    setText(value);
+    setMentionQuery(null);
+  };
+
+  const insertSkill = (id: string) => {
+    const skill = availableSkills.find((item) => item.id === id);
+    if (!skill) return;
+    const start = composer.current?.selectionStart ?? text.length;
+    const end = composer.current?.selectionEnd ?? start;
+    const before = text.slice(0, start);
+    const token = `${before && !/\s$/.test(before) ? " " : ""}$${skill.name} `;
+    const value = before + token + text.slice(end);
+    if (value.length > 10000) return;
+    nextSelection.current = before.length + token.length;
     setText(value);
     setMentionQuery(null);
   };
@@ -335,7 +357,7 @@ export function ChatComposer({
                 void send();
               }
             }}
-            placeholder="输入消息，@ 指定成员…"
+            placeholder="输入消息，@ 指定成员，$ 调用技能…"
             rows={2}
           />
           {menuOpen && (
@@ -395,6 +417,25 @@ export function ChatComposer({
               <option value="auto">自动协作</option>
               <option value="discussion">仅讨论</option>
             </Select>
+            <Select
+              className="chat-skill-select"
+              aria-label="调用技能"
+              value=""
+              disabled={!availableSkills.length}
+              title={
+                availableSkills.length
+                  ? "插入技能指令，本次消息将使用技能回复"
+                  : "先在技能库创建并启用技能"
+              }
+              onChange={(event) => insertSkill(event.target.value)}
+            >
+              <option value="">调用技能</option>
+              {availableSkills.map((skill) => (
+                <option key={skill.id} value={skill.id}>
+                  ${skill.name} · {skill.description}
+                </option>
+              ))}
+            </Select>
             <IconButton
               className={target ? "selected" : ""}
               title="选择回复 Agent"
@@ -438,6 +479,11 @@ export function ChatComposer({
             {sending ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}
           </button>
         </div>
+        {automaticSkills.length > 0 && (
+          <p className="composer-skill-hint">
+            自动使用：{automaticSkills.map((skill) => `$${skill.name}`).join("、")}
+          </p>
+        )}
       </div>
       <div className="composer-footer">
         <p className="composer-recipient" id={recipientHintId}>

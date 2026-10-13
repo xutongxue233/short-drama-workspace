@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Agent, Project } from "../../../types";
+import type { Agent, Project, Skill } from "../../../types";
 import { ChatComposer } from "./ChatComposer";
 
 const agents: Agent[] = [
@@ -43,12 +43,13 @@ const project: Project = {
 
 beforeEach(() => sessionStorage.clear());
 
-function setup(onAction = vi.fn().mockResolvedValue(true)) {
+function setup(onAction = vi.fn().mockResolvedValue(true), skills: Skill[] = []) {
   const onSendingChange = vi.fn();
   const view = render(
     <ChatComposer
       project={project}
       agents={agents}
+      skills={skills}
       busy={false}
       onAction={onAction}
       onSource={vi.fn()}
@@ -69,6 +70,51 @@ function type(input: HTMLTextAreaElement, value: string, caret = value.length) {
 }
 
 describe("chat composer mentions", () => {
+  it("inserts an enabled skill, retains the failed draft, and restores the invocation", async () => {
+    const skills: Skill[] = [true, false].map((enabled, i) => ({
+      id: `skill-${i}`,
+      name: enabled ? "script-review" : "disabled-skill",
+      description: "审核剧本",
+      instructions: "检查角色动机",
+      enabled,
+      version: 1,
+      createdAt: "",
+      updatedAt: "",
+    }));
+    const onAction = vi.fn().mockResolvedValue(false);
+    const view = setup(onAction, skills);
+    type(view.input, "检查开场");
+    fireEvent.click(screen.getByRole("combobox", { name: "调用技能" }));
+    expect(screen.queryByRole("option", { name: /disabled-skill/ })).toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /script-review/ }));
+    expect(view.input.value).toBe("检查开场 $script-review ");
+    expect(screen.getByRole("combobox", { name: "消息协作模式" }).textContent).toBe(
+      "自动协作",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+    await waitFor(() => expect(view.onSendingChange).toHaveBeenLastCalledWith(null));
+    expect(onAction).toHaveBeenCalledWith("/projects/mention-test/messages", {
+      content: "检查开场 $script-review",
+      agentId: undefined,
+    });
+    view.unmount();
+    const restored = setup(vi.fn().mockResolvedValue(true), skills);
+    expect(restored.input.value).toBe("检查开场 $script-review ");
+    expect(screen.getByRole("combobox", { name: "消息协作模式" }).textContent).toBe(
+      "自动协作",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+    await waitFor(() => expect(restored.input.value).toBe(""));
+    type(restored.input, "开始制作");
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+    await waitFor(() =>
+      expect(restored.onAction).toHaveBeenLastCalledWith(
+        "/projects/mention-test/messages",
+        { content: "开始制作", agentId: undefined },
+      ),
+    );
+  });
+
   it("restores the discussion mode together with the draft after leaving the chat", async () => {
     const view = setup();
     fireEvent.click(screen.getByRole("combobox", { name: "消息协作模式" }));
