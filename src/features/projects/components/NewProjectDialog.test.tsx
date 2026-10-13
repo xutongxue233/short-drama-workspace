@@ -44,7 +44,13 @@ describe("single episode project creation", () => {
     expect(
       (screen.getByRole("button", { name: "创建项目群聊" }) as HTMLButtonElement)
         .disabled,
-    ).toBe(true);
+    ).toBe(false);
+    const name = screen.getByRole("textbox", { name: "项目名称" });
+    expect(name.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(name);
+    expect(screen.getByRole("alert").textContent).toBe("请填写项目名称");
+    fireEvent.change(name, { target: { value: "新项目" } });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("prevents duplicate creation and dismissal while a request is pending, then preserves edits after failure", async () => {
@@ -74,6 +80,7 @@ describe("single episode project creation", () => {
       expect((control as HTMLInputElement).disabled).toBe(true);
     }
     await act(async () => reject(new Error("创建失败")));
+    expect(screen.getByRole("alert").textContent).toContain("创建失败");
     expect(
       (screen.getByRole("textbox", { name: "项目名称" }) as HTMLInputElement).value,
     ).toBe("本集测试");

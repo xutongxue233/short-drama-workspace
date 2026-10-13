@@ -4,7 +4,7 @@ import { useProjectItems } from "../../components/hooks/useProjectItems";
 import type { Action } from "../../shared/contracts";
 import { projectPermissions } from "../../shared/project-members";
 import type { Material, Project } from "../../types";
-import { Button, EmptyState, IconButton, Select } from "../../ui";
+import { Alert, Button, EmptyState, IconButton, Select } from "../../ui";
 import { MaterialCard } from "./MaterialCard";
 import { MaterialDialog } from "./MaterialDialog";
 import {
@@ -282,12 +282,16 @@ function ProjectMaterials({
       {remote && (page.error || page.hasMore) && (
         <div className="library-pagination">
           {page.error && (
-            <>
-              <span role="alert">{page.error}</span>
-              <Button size="sm" onClick={page.retry} disabled={page.loading}>
-                重试加载素材
-              </Button>
-            </>
+            <Alert
+              tone="danger"
+              action={
+                <Button size="sm" onClick={page.retry} disabled={page.loading}>
+                  重试加载素材
+                </Button>
+              }
+            >
+              {page.error}
+            </Alert>
           )}
           {page.hasMore && !page.error && (
             <Button

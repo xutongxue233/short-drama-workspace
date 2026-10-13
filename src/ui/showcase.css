@@ -253,3 +253,8 @@
     font-size: 18px;
   }
 }
+.showcase-feedback-stack {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}

@@ -6,6 +6,8 @@ import { projectPermissions } from "../../../shared/project-members";
 import type { Project } from "../../../types";
 import {
   Badge,
+  Alert,
+  Form,
   Button,
   Dialog,
   DialogBody,
@@ -154,7 +156,7 @@ export function EpisodeArchiveDialog({
                         <small>{statusNames[node.status]}</small>
                       </summary>
                       <div className="episode-node-output">
-                        {node.error && <p className="error-text">{node.error}</p>}
+                        {node.error && <Alert tone="danger">{node.error}</Alert>}
                         {node.output ? (
                           <TextContent text={node.output} />
                         ) : (
@@ -188,7 +190,7 @@ export function EpisodeArchiveDialog({
           </section>
         </div>
         {preparing && (
-          <form
+          <Form
             id="next-episode-form"
             className="next-episode-form"
             onSubmit={async (event) => {
@@ -224,12 +226,8 @@ export function EpisodeArchiveDialog({
                 disabled={saving}
               />
             </Field>
-            {error && (
-              <p role="alert" className="error-text">
-                {error}
-              </p>
-            )}
-          </form>
+            {error && <Alert tone="danger">{error}</Alert>}
+          </Form>
         )}
       </DialogBody>
       <DialogFooter>

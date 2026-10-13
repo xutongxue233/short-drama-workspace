@@ -1,6 +1,6 @@
 import { ImageOff, Image, Film, Music2, CloudDownload } from "lucide-react";
 import { useState } from "react";
-import { Button } from "../../ui";
+import { Alert, Button } from "../../ui";
 import type { Material } from "../../types";
 import { materialPreviewUrl, materialTypeNames } from "./materialUtils";
 
@@ -34,20 +34,24 @@ export function MaterialMedia({
       </div>
     );
   if (!url || failedUrl === url)
-    return (
+    return thumbnail ? (
       <div className="material-placeholder material-media-error" role="status">
         <ImageOff size={28} />
-        <span>
-          {thumbnail
-            ? "预览不可用"
-            : "素材暂时无法加载。远程链接可能已失效，或本地文件已被移动。"}
-        </span>
-        {!thumbnail && url && (
-          <Button size="sm" onClick={() => setFailedUrl("")}>
-            重试加载 {material.name}
-          </Button>
-        )}
+        <span>预览不可用</span>
       </div>
+    ) : (
+      <Alert
+        tone="danger"
+        action={
+          url ? (
+            <Button size="sm" onClick={() => setFailedUrl("")}>
+              重试加载 {material.name}
+            </Button>
+          ) : undefined
+        }
+      >
+        素材暂时无法加载。远程链接可能已失效，或本地文件已被移动。
+      </Alert>
     );
   const onError = () => setFailedUrl(url);
   if (material.type === "video")

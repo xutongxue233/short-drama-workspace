@@ -19,7 +19,6 @@ export function useWorkspaceState(scope?: {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revision = useRef(0);
   const lifecycle = useRef(0);
   const mounted = useRef(true);
@@ -39,11 +38,6 @@ export function useWorkspaceState(scope?: {
     (message: string, kind: "success" | "error" = "success") => {
       if (!mounted.current) return;
       setToast({ message, kind });
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-      toastTimer.current = setTimeout(
-        () => setToast(null),
-        kind === "error" ? 6500 : 4500,
-      );
     },
     [],
   );
@@ -122,32 +116,26 @@ export function useWorkspaceState(scope?: {
       for (const pending of waiting)
         pending.reject(new DOMException("工作台已关闭", "AbortError"));
       waiting.clear();
-      if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, [refresh]);
   const mutate = useCallback(
     async (path: string, body?: unknown, method = "POST") => {
       const currentLifecycle = lifecycle.current;
-      try {
-        const result = await request(path, body, method);
-        if (!mounted.current || currentLifecycle !== lifecycle.current)
-          throw new DOMException("工作台已关闭", "AbortError");
-        const seq = ++revision.current;
-        const synchronized = new Promise<void>((resolve, reject) => {
-          synchronizations.current.add({ revision: seq, resolve, reject });
-        });
-        void refresh();
-        // A failed GET is retried by polling, never by repeating the committed
-        // write. Keep dependent forms busy until a fresh snapshot is applied.
-        await synchronized;
-        return result;
-      } catch (error) {
-        if (mounted.current && currentLifecycle === lifecycle.current)
-          notify((error as Error).message, "error");
-        throw error;
-      }
+      // Editors own their persistent inline error; do not also emit a global toast.
+      const result = await request(path, body, method);
+      if (!mounted.current || currentLifecycle !== lifecycle.current)
+        throw new DOMException("工作台已关闭", "AbortError");
+      const seq = ++revision.current;
+      const synchronized = new Promise<void>((resolve, reject) => {
+        synchronizations.current.add({ revision: seq, resolve, reject });
+      });
+      void refresh();
+      // A failed GET is retried by polling, never by repeating the committed
+      // write. Keep dependent forms busy until a fresh snapshot is applied.
+      await synchronized;
+      return result;
     },
-    [notify, refresh],
+    [refresh],
   );
   const action: Action = useCallback(
     async (path, body, success, method = "POST") => {
@@ -159,7 +147,9 @@ export function useWorkspaceState(scope?: {
         await mutate(path, body === undefined && method === "POST" ? {} : body, method);
         if (success && currentLifecycle === lifecycle.current) notify(success);
         return true;
-      } catch {
+      } catch (error) {
+        if (mounted.current && currentLifecycle === lifecycle.current)
+          notify((error as Error).message, "error");
         return false;
       } finally {
         actionPending.current = false;
@@ -168,6 +158,7 @@ export function useWorkspaceState(scope?: {
     },
     [mutate, notify],
   );
+  const dismissToast = useCallback(() => setToast(null), []);
   return {
     state,
     error,
@@ -177,6 +168,6 @@ export function useWorkspaceState(scope?: {
     mutate,
     action,
     notify,
-    dismissToast: () => setToast(null),
+    dismissToast,
   };
 }

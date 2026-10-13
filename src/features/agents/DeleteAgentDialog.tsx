@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { Agent, Mutate } from "../../types";
-import { Button, Dialog, DialogBody, DialogClose, DialogFooter } from "../../ui";
+import { Alert, Button, Dialog, DialogBody, DialogClose, DialogFooter } from "../../ui";
 import type { SettingsProps } from "../../components/settings/types";
 
 export function DeleteAgentDialog({
@@ -46,11 +46,7 @@ export function DeleteAgentDialog({
           只有未被项目或历史记录使用的自定义成员可以删除。如需保留记录，请取消并停用成员。
         </p>
         {projectCount > 0 && <p>当前参与 {projectCount} 个项目，建议使用停用功能。</p>}
-        {error && (
-          <p className="agent-form-error" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <Alert tone="danger">{error}</Alert>}
       </DialogBody>
       <DialogFooter>
         <DialogClose disabled={busy}>取消</DialogClose>

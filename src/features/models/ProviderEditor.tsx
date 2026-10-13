@@ -10,12 +10,14 @@ import {
 } from "lucide-react";
 import { type Mutate, type Provider } from "../../types";
 import {
+  Alert,
   Button,
   Dialog,
   DialogBody,
   DialogClose,
   DialogFooter,
   Field,
+  Form,
   IconButton,
   Input,
   Select,
@@ -68,6 +70,9 @@ export function ProviderEditor({
   const [reveal, setReveal] = useState(false);
   const [enabled, setEnabled] = useState(provider?.enabled ?? !initialPreset);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const modelError =
+    model.trim().length > 200 ? "模型名称最多允许 200 个字符" : undefined;
   const formId = useId();
   const dirty =
     name !== (provider?.name || initialPreset?.name || "") ||
@@ -112,8 +117,9 @@ export function ProviderEditor({
   }
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (saving) return;
+    if (saving || modelError) return;
     setSaving(true);
+    setError("");
     try {
       await mutate(
         provider ? `/providers/${provider.id}` : "/providers",
@@ -132,8 +138,10 @@ export function ProviderEditor({
       notify(provider ? "模型服务配置已保存" : "模型服务已添加");
       onSaved();
       onClose();
-    } catch {
-      /* The workspace displays API errors. */
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "保存失败，已保留本次配置，请重试。",
+      );
     } finally {
       setSaving(false);
     }
@@ -150,7 +158,7 @@ export function ProviderEditor({
       }}
       wide
     >
-      <form onSubmit={save} aria-busy={saving}>
+      <Form onSubmit={save} aria-busy={saving}>
         <DialogBody className="settings-form-body">
           <fieldset className="settings-form-fields" disabled={saving}>
             {!provider && (
@@ -221,9 +229,14 @@ export function ProviderEditor({
                 </Select>
               </Field>
             </div>
-            <Field label="接口地址" htmlFor={`${formId}-url`}>
+            <Field
+              label="接口地址"
+              htmlFor={`${formId}-url`}
+              validationMessage="请输入以 https:// 或 http:// 开头的完整接口地址，例如 https://api.example.com/v1。"
+            >
               <Input
                 type="url"
+                pattern="https?://.+"
                 value={baseUrl}
                 onChange={(e) => {
                   setBaseUrl(e.target.value);
@@ -245,6 +258,7 @@ export function ProviderEditor({
               />
             </Field>
             <ModelPicker
+              error={modelError}
               id={`${formId}-model`}
               value={model}
               onChange={setModel}
@@ -349,20 +363,16 @@ export function ProviderEditor({
               密钥仅保存在本机服务端，不会在列表中回传。请勿分享工作台的数据文件。
             </p>
           </fieldset>
+          {error && <Alert tone="danger">{error}</Alert>}
         </DialogBody>
         <DialogFooter>
           <DialogClose disabled={saving}>取消</DialogClose>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={saving}
-            disabled={saving || !name.trim() || !baseUrl.trim()}
-          >
+          <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             <Check size={16} />
             保存服务
           </Button>
         </DialogFooter>
-      </form>
+      </Form>
     </Dialog>
   );
 }

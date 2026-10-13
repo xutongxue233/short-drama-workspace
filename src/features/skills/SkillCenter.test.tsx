@@ -24,6 +24,21 @@ const state: WorkspaceState = {
   skills: [skill],
 };
 
+it("explains invalid skill names inline and leaves saving available for correction", () => {
+  const mutate = vi.fn();
+  render(<SkillCenter state={state} mutate={mutate} notify={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "编辑技能 review-drama" }));
+  fireEvent.change(screen.getByLabelText("技能名称"), {
+    target: { value: "Invalid--Name" },
+  });
+  const save = screen.getByRole("button", { name: "保存技能" }) as HTMLButtonElement;
+  expect(save.disabled).toBe(false);
+  fireEvent.click(save);
+  expect(screen.getByText(/请使用小写英文字母、数字与单个连字符/)).toBeTruthy();
+  expect(screen.getByLabelText("技能名称").getAttribute("aria-invalid")).toBe("true");
+  expect(mutate).not.toHaveBeenCalled();
+});
+
 it("opens an editable template without writing until save and guards its unsaved draft", async () => {
   const mutate = vi.fn().mockResolvedValue({});
   render(

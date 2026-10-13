@@ -97,7 +97,7 @@ it("creates an Agent from the visible entry with trimmed fields and chosen color
   fireEvent.click(screen.getByRole("button", { name: "新增 Agent" }));
   expect(screen.getByRole("dialog", { name: "新增 Agent" })).toBeTruthy();
   const save = screen.getByRole("button", { name: "创建 Agent" }) as HTMLButtonElement;
-  expect(save.disabled).toBe(true);
+  expect(save.disabled).toBe(false);
   enter("Agent 名称", "  动作顾问  ");
   enter("工作职责", "  动作设计  ");
   enter(/职责说明/, "  保持动作连续性  ");

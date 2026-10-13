@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { request } from "../../api";
 import type { PublicUser } from "../../types";
-import { Button, Dialog, DialogBody, Field, Input, Select } from "../../ui";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogBody,
+  Field,
+  Form,
+  Input,
+  Select,
+} from "../../ui";
 import type { AuditEvent, AuthSession } from "./types";
 import "./auth.css";
 
@@ -91,7 +100,7 @@ function MyAccount({
       <p className="account-explanation">
         账户身份用于登录和发言。项目内的权限与创作分工由项目成员设置决定。
       </p>
-      <form
+      <Form
         className="auth-form"
         aria-label="修改密码"
         onSubmit={async (event) => {
@@ -146,20 +155,12 @@ function MyAccount({
             onChange={(event) => setNewPassword(event.target.value)}
           />
         </Field>
-        {error && (
-          <p className="auth-error" role="alert">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p className="account-notice" role="status">
-            {notice}
-          </p>
-        )}
+        {error && <Alert tone="danger">{error}</Alert>}
+        {notice && <Alert tone="success">{notice}</Alert>}
         <Button type="submit" loading={busy}>
           更新密码
         </Button>
-      </form>
+      </Form>
       <div className="account-signout">
         <span>退出后，当前工作台的内容会清除。</span>
         <Button variant="danger" disabled={busy} onClick={() => void onLogout()}>
@@ -213,12 +214,16 @@ function TeamAccounts({ currentUser }: { currentUser: PublicUser }) {
         </Button>
       </div>
       {error && (
-        <p role="alert" className="auth-error">
+        <Alert
+          tone="danger"
+          action={
+            <Button size="sm" disabled={loading} onClick={() => void reload()}>
+              重试
+            </Button>
+          }
+        >
           {error}
-          <Button size="sm" onClick={() => void reload()}>
-            重试
-          </Button>
-        </p>
+        </Alert>
       )}
       {loading && <p role="status">正在读取账户…</p>}
       <div className="account-users">
@@ -317,7 +322,7 @@ function UserEditor({
       busy={busy}
     >
       <DialogBody>
-        <form
+        <Form
           className="auth-form"
           aria-label={user ? "编辑账户" : "创建团队账户"}
           onSubmit={async (event) => {
@@ -359,6 +364,7 @@ function UserEditor({
               label="用户名"
               htmlFor={`${id}-username`}
               hint="3–64 位字母、数字、下划线、短横线或点。"
+              validationMessage="用户名须为 3–64 位字母、数字、下划线、短横线或点，例如 editor_01。"
             >
               <Input
                 autoComplete="off"
@@ -431,15 +437,11 @@ function UserEditor({
               />
             </Field>
           )}
-          {error && (
-            <p role="alert" className="auth-error">
-              {error}
-            </p>
-          )}
+          {error && <Alert tone="danger">{error}</Alert>}
           <Button type="submit" variant="primary" loading={busy}>
             {user ? "保存账户" : "创建账户"}
           </Button>
-        </form>
+        </Form>
       </DialogBody>
     </Dialog>
   );
@@ -496,11 +498,7 @@ function AuditLog() {
           刷新
         </Button>
       </div>
-      {error && (
-        <p role="alert" className="auth-error">
-          {error}
-        </p>
-      )}
+      {error && <Alert tone="danger">{error}</Alert>}
       {loading ? (
         <p role="status">正在读取记录…</p>
       ) : !events.length ? (

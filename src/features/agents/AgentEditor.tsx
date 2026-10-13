@@ -2,12 +2,14 @@ import { useId, useState, type FormEvent } from "react";
 import { Check, ShieldCheck } from "lucide-react";
 import { type Agent, type Mutate, type Provider, type Skill } from "../../types";
 import {
+  Alert,
   Button,
   Dialog,
   DialogBody,
   DialogClose,
   DialogFooter,
   Field,
+  Form,
   Input,
   Select,
   Switch,
@@ -56,6 +58,8 @@ export function AgentEditor({
     JSON.stringify(skillIds) !== JSON.stringify(source.skillIds ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const modelError =
+    model.trim().length > 200 ? "模型名称最多允许 200 个字符" : undefined;
   const provider = providers.find((item) => item.id === providerId);
   const preset = PROVIDER_PRESETS.find(
     (item) =>
@@ -73,17 +77,13 @@ export function AgentEditor({
     model !== source.model ||
     enabled !== source.enabled ||
     skillBindingsChanged;
-  const valid =
-    Boolean(name.trim() && role.trim() && prompt.trim()) &&
-    name.trim().length <= 80 &&
-    role.trim().length <= 80 &&
-    description.trim().length <= 1000 &&
-    prompt.trim().length <= 12000 &&
-    model.trim().length <= 200 &&
-    skillIds.length <= 8;
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (saving || !valid) return;
+    if (saving || modelError) return;
+    if (skillIds.length > 8) {
+      setError("最多绑定 8 个技能，请取消多余的技能后保存。");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -139,7 +139,7 @@ export function AgentEditor({
       }}
       wide
     >
-      <form onSubmit={save} aria-busy={saving}>
+      <Form onSubmit={save} aria-busy={saving}>
         <DialogBody className="settings-form-body">
           <fieldset className="settings-form-fields" disabled={saving}>
             <div className="settings-form-grid">
@@ -226,11 +226,12 @@ export function AgentEditor({
               </Select>
             </Field>
             {provider && !provider.enabled && (
-              <p className="settings-field-help">
+              <Alert tone="warning">
                 当前模型服务已停用，使用此 Agent 前请先启用服务或选择其他服务。
-              </p>
+              </Alert>
             )}
             <ModelPicker
+              error={modelError}
               id={`${formId}-model`}
               value={model}
               onChange={setModel}
@@ -328,7 +329,9 @@ export function AgentEditor({
                 </p>
               )}
               {skillIds.length >= 8 && (
-                <p role="status">最多绑定 8 个技能，取消一个后可以选择其他技能。</p>
+                <Alert tone="info">
+                  最多绑定 8 个技能，取消一个后可以选择其他技能。
+                </Alert>
               )}
             </fieldset>
             <div className="settings-option-row">
@@ -346,22 +349,17 @@ export function AgentEditor({
         </DialogBody>
         <DialogFooter className="agent-editor-footer">
           {error && (
-            <p className="agent-form-error" role="alert">
+            <Alert tone="danger" className="agent-editor-feedback">
               {error}
-            </p>
+            </Alert>
           )}
           <DialogClose disabled={saving}>取消</DialogClose>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={saving}
-            disabled={saving || !valid}
-          >
+          <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             <Check size={16} />
             {agent ? "保存配置" : "创建 Agent"}
           </Button>
         </DialogFooter>
-      </form>
+      </Form>
     </Dialog>
   );
 }

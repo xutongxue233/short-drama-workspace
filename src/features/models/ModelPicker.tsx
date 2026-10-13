@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { request } from "../../api";
 import type { Provider } from "../../types";
-import { Button, Field, Input, Select } from "../../ui";
+import { Alert, Button, Field, Input, Select } from "../../ui";
 import "./styles/model-picker.css";
 
 export interface ModelDiscoveryConfig {
@@ -30,6 +30,7 @@ export function ModelPicker({
   disabled = false,
   emptyLabel = "暂不指定模型",
   placeholder = "填写模型 ID",
+  error,
 }: {
   id: string;
   value: string;
@@ -39,6 +40,7 @@ export function ModelPicker({
   disabled?: boolean;
   emptyLabel?: string;
   placeholder?: string;
+  error?: string;
 }) {
   const [manual, setManual] = useState(false);
   const [result, setResult] = useState<{
@@ -57,7 +59,16 @@ export function ModelPicker({
   const fallback = [...new Set(presets)].filter((model) => !modelIds.has(model));
   const customValue = value && !modelIds.has(value) && !fallback.includes(value);
   async function loadModels() {
-    if (!config || !config.baseUrl.trim() || loading) return;
+    if (loading) return;
+    if (!config || !config.baseUrl.trim()) {
+      setResult({
+        key: configKey,
+        error: config
+          ? "请先填写完整接口地址，再获取模型列表。"
+          : "请先选择模型服务，再获取模型列表。",
+      });
+      return;
+    }
     controller.current?.abort();
     const active = new AbortController();
     controller.current = active;
@@ -80,7 +91,7 @@ export function ModelPicker({
     }
   }
   return (
-    <Field label="模型名称" htmlFor={id}>
+    <Field label="模型名称" htmlFor={id} error={error}>
       <div className="model-picker-controls">
         {manual ? (
           <Input
@@ -133,7 +144,7 @@ export function ModelPicker({
           size="sm"
           variant="secondary"
           loading={loading}
-          disabled={disabled || !config?.baseUrl.trim() || loading}
+          disabled={disabled || loading}
           onClick={() => void loadModels()}
         >
           <RefreshCw size={13} />
@@ -147,24 +158,24 @@ export function ModelPicker({
         </button>
       </div>
       {current?.error && (
-        <p className="model-picker-error" role="alert">
-          {current.error} 仍可选择预设或手动输入。
-        </p>
+        <Alert tone="danger">{current.error} 仍可选择预设或手动输入。</Alert>
       )}
       {current?.catalog && (
-        <p className="model-picker-status" role="status">
-          <strong>
-            {current.catalog.source === "remote"
+        <Alert
+          tone={current.catalog.source === "remote" ? "success" : "info"}
+          title={
+            current.catalog.source === "remote"
               ? `已从接口获取 ${models.length} 个模型`
               : current.catalog.source === "preset"
                 ? "当前显示官方预设"
-                : "此接口不支持获取模型列表"}
-          </strong>
+                : "此接口不支持获取模型列表"
+          }
+        >
           {current.catalog.message && <span>{current.catalog.message}</span>}
           {current.catalog.truncated && (
             <span>列表较长，已显示部分模型；其余型号可手动输入。</span>
           )}
-        </p>
+        </Alert>
       )}
     </Field>
   );

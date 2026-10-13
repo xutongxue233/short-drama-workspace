@@ -1,9 +1,11 @@
-import { Check, LockKeyhole, Pause } from "lucide-react";
+import { Check, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 import { TextContent } from "../../../components/TextContent";
 import { assetNames } from "../../../shared/labels";
 import type { Asset } from "../../../types";
 import {
+  Alert,
+  Form,
   Button,
   Dialog,
   DialogBody,
@@ -32,6 +34,7 @@ export function AssetDialog({
   const [preview, setPreview] = useState(false);
   const [locked, setLocked] = useState(item.locked);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const dirty =
     name.trim() !== item.name ||
     description.trim() !== item.description ||
@@ -48,7 +51,7 @@ export function AssetDialog({
       dirty={dirty || locked !== item.locked}
       wide
     >
-      <form
+      <Form
         onSubmit={async (e) => {
           e.preventDefault();
           if (saving || readOnly) return;
@@ -59,10 +62,15 @@ export function AssetDialog({
           if (content.trim() !== item.content) changes.content = content.trim();
           if (locked !== item.locked) changes.locked = locked;
           setSaving(true);
+          setError("");
           try {
             await onSave(changes);
-          } catch {
-            /* Preserve asset edits after a save failure. */
+          } catch (cause) {
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "保存失败，请重试。资产修改已保留。",
+            );
           } finally {
             setSaving(false);
           }
@@ -71,12 +79,11 @@ export function AssetDialog({
         <DialogBody className="studio-form-body">
           <AssetMedia item={item} />
           {readOnly && (
-            <p className="form-info">
-              <Pause size={15} />
+            <Alert tone="info">
               {item.tags.includes("历史版本")
                 ? "这是历史版本，保留用于追溯。请在资产库中打开最新版本进行修改。"
                 : "当前资产仅可查看；拥有编辑权限且项目暂停制作后可修改。"}
-            </p>
+            </Alert>
           )}
           <Field htmlFor="studio-field-8" label="资产名称">
             <Input
@@ -152,6 +159,7 @@ export function AssetDialog({
               </small>
             </span>
           </label>
+          {error && <Alert tone="danger">{error}</Alert>}
         </DialogBody>
         <DialogFooter>
           <DialogClose disabled={saving}>关闭</DialogClose>
@@ -159,9 +167,7 @@ export function AssetDialog({
             <Button
               variant="primary"
               loading={saving}
-              disabled={
-                saving || readOnly || !name.trim() || (!dirty && locked === item.locked)
-              }
+              disabled={saving || readOnly || (!dirty && locked === item.locked)}
               type="submit"
             >
               <Check size={14} />
@@ -169,7 +175,7 @@ export function AssetDialog({
             </Button>
           )}
         </DialogFooter>
-      </form>
+      </Form>
     </Dialog>
   );
 }

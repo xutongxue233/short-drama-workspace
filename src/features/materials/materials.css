@@ -219,16 +219,8 @@
   color: var(--ui-muted);
   margin-top: 10px;
 }
-.material-card-error {
-  font-size: 11px;
-  line-height: 1.7;
+.material-card-feedback {
   margin-top: 10px;
-  color: var(--ui-danger);
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
 }
 .material-card-actions {
   display: flex;

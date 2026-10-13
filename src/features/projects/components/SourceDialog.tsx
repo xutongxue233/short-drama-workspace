@@ -1,7 +1,9 @@
-import { BookOpen, FileText, LoaderCircle, Paperclip, Pause } from "lucide-react";
+import { BookOpen, FileText, LoaderCircle, Paperclip } from "lucide-react";
 import { useRef, useState } from "react";
 import type { Project } from "../../../types";
 import {
+  Alert,
+  Form,
   Button,
   Dialog,
   DialogBody,
@@ -26,6 +28,7 @@ export function SourceDialog({
   const [saving, setSaving] = useState(false);
   const [reading, setReading] = useState(false);
   const [fileError, setFileError] = useState("");
+  const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const pending = useRef(false);
   const close = () => {
@@ -65,19 +68,22 @@ export function SourceDialog({
       dirty={Boolean(title || content)}
       wide
     >
-      <form
+      <Form
         onSubmit={async (e) => {
           e.preventDefault();
           if (pending.current || importDisabled || !content.trim()) return;
           pending.current = true;
           setSaving(true);
+          setError("");
           try {
             await onImport({
               title: title.trim() || `原文片段 ${project.chapters.length + 1}`,
               content,
             });
-          } catch {
-            /* Keep imported text available after an API error. */
+          } catch (cause) {
+            setError(
+              cause instanceof Error ? cause.message : "导入失败，请重试。原文已保留。",
+            );
           } finally {
             pending.current = false;
             setSaving(false);
@@ -130,19 +136,12 @@ export function SourceDialog({
               }}
             />
           </div>
-          {fileError && (
-            <p className="error-text" role="alert">
-              {fileError}
-            </p>
-          )}
+          {fileError && <Alert tone="danger">{fileError}</Alert>}
           {project.running && (
-            <p className="form-info">
-              <Pause size={15} />
-              项目正在制作，请先暂停制作再导入新章节。
-            </p>
+            <Alert tone="warning">项目正在制作，请先暂停制作再导入新章节。</Alert>
           )}
           {project.backgroundTask && (
-            <p className="form-info">图片测试进行中，请等待测试完成再导入新章节。</p>
+            <Alert tone="info">图片测试进行中，请等待测试完成再导入新章节。</Alert>
           )}
           <Field htmlFor="studio-field-6" label="章节或片段标题" optional>
             <Input
@@ -173,20 +172,21 @@ export function SourceDialog({
               disabled={importDisabled}
             />
           </Field>
+          {error && <Alert tone="danger">{error}</Alert>}
         </DialogBody>
         <DialogFooter>
           <DialogClose disabled={saving || reading}>取消</DialogClose>
           <Button
             variant="primary"
             loading={saving}
-            disabled={importDisabled || !content.trim()}
+            disabled={importDisabled}
             type="submit"
           >
             <BookOpen size={15} />
             导入本集原文
           </Button>
         </DialogFooter>
-      </form>
+      </Form>
     </Dialog>
   );
 }

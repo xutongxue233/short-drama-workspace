@@ -355,10 +355,10 @@
   .lock-option > svg {
     display: none;
   }
-  .toast {
+  .ui-toast {
     bottom: max(16px, env(safe-area-inset-bottom));
-    font-size: 11px;
-    padding: 11px 12px;
+    font-size: 13px;
+    padding: 10px 12px;
   }
 }
 @media (max-width: 360px) {

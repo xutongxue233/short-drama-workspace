@@ -5,7 +5,7 @@ import type { Action } from "../../../shared/contracts";
 import { statusNames } from "../../../shared/labels";
 import { projectPermissions } from "../../../shared/project-members";
 import type { Agent, Project, WorkflowNode } from "../../../types";
-import { Button, Dialog, DialogBody, DialogFooter } from "../../../ui";
+import { Alert, Button, Dialog, DialogBody, DialogFooter } from "../../../ui";
 
 export function NodeDialog({
   node,
@@ -91,9 +91,9 @@ export function NodeDialog({
       <DialogBody>
         <div className="node-detail">
           <p>{node.description}</p>
-          {node.error && <div className="error-box">{node.error}</div>}
+          {node.error && <Alert tone="danger">{node.error}</Alert>}
           {taskId && (
-            <div className="form-info">
+            <Alert tone="warning">
               <div>
                 <p>待取回的视频任务：{taskId}</p>
                 <p>
@@ -113,10 +113,10 @@ export function NodeDialog({
                     : "归档旧视频任务"}
                 </Button>
               </div>
-            </div>
+            </Alert>
           )}
           {uncertainImages.map((image) => (
-            <div className="form-info" key={image.captureId}>
+            <Alert tone="warning" key={image.captureId}>
               <div>
                 <p>图像请求结果待核查：{image.name}</p>
                 <p>请先在供应商侧核查请求结果，再决定是否归档。</p>
@@ -135,7 +135,7 @@ export function NodeDialog({
                   {image.name}
                 </Button>
               </div>
-            </div>
+            </Alert>
           ))}
           {node.output ? (
             <TextContent text={node.output} />
@@ -146,14 +146,13 @@ export function NodeDialog({
             </div>
           )}
           {rerunConfirm && (
-            <div className="form-info">
-              <GitBranch size={17} />
+            <Alert tone="warning">
               <span>
                 将从「{node.name}
                 」重新执行，后续节点需要重新确认。已锁定资产继续作为创作标准。
                 重新制作会调用已配置的模型服务。
               </span>
-            </div>
+            </Alert>
           )}
         </div>
       </DialogBody>

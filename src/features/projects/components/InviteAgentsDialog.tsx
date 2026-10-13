@@ -9,7 +9,16 @@ import {
   projectPermissions,
 } from "../../../shared/project-members";
 import type { Agent, Project, ProjectParticipant, PublicUser } from "../../../types";
-import { Button, Dialog, DialogBody, Field, Input, Select } from "../../../ui";
+import {
+  Alert,
+  Form,
+  Button,
+  Dialog,
+  DialogBody,
+  Field,
+  Input,
+  Select,
+} from "../../../ui";
 import "../styles/project-members.css";
 
 type EditableAccess = Exclude<ProjectParticipant["access"], "owner">;
@@ -38,6 +47,7 @@ export function InviteAgentsDialog({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const locked = busy || saving;
   const path = `/projects/${project.id}`;
   const { canEdit, canManageMembers } = projectPermissions(project);
@@ -60,6 +70,7 @@ export function InviteAgentsDialog({
     event.preventDefault();
     if (locked || !canManageMembers || (!editingId && !username.trim())) return;
     setSaving(true);
+    setSaveError("");
     try {
       const ok = await onAction(
         editingId
@@ -74,6 +85,7 @@ export function InviteAgentsDialog({
         editingId ? "PATCH" : "POST",
       );
       if (ok) clearForm();
+      else setSaveError("未能保存成员设置，请检查账号和权限后重试。");
     } finally {
       setSaving(false);
     }
@@ -196,16 +208,22 @@ export function InviteAgentsDialog({
             <p className="project-roster-explanation">
               通过已有账号的用户名添加。分工只是介绍，不会改变项目权限。
             </p>
-            <form
+            <Form
               className="project-participant-form"
               onSubmit={(event) => void saveParticipant(event)}
             >
               {!editingId && (
-                <Field label="用户名" htmlFor={`${fieldId}-username`}>
+                <Field
+                  label="用户名"
+                  htmlFor={`${fieldId}-username`}
+                  validationMessage="用户名须为 3–64 位字母、数字、点、下划线或连字符。"
+                >
                   <Input
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
                     maxLength={64}
+                    minLength={3}
+                    pattern="[a-zA-Z0-9_.\-]{3,64}"
                     required
                     autoComplete="off"
                     placeholder="例如 editor.lin"
@@ -250,21 +268,22 @@ export function InviteAgentsDialog({
                   disabled={locked}
                 />
               </Field>
+              {saveError && (
+                <Alert tone="danger" className="project-participant-feedback">
+                  {saveError}
+                </Alert>
+              )}
               <div className="project-participant-form-actions">
                 {editingId && (
                   <Button variant="ghost" disabled={locked} onClick={clearForm}>
                     取消编辑
                   </Button>
                 )}
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={locked || (!editingId && !username.trim())}
-                >
+                <Button type="submit" variant="primary" disabled={locked}>
                   {editingId ? "保存成员设置" : "添加到群聊"}
                 </Button>
               </div>
-            </form>
+            </Form>
           </section>
         )}
         {canEdit && (

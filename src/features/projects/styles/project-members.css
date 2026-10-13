@@ -122,6 +122,7 @@ button.project-roster-person:hover {
   margin-top: 14px;
 }
 .project-participant-form > .ui-field:first-child,
+.project-participant-feedback,
 .project-participant-form-actions {
   grid-column: 1 / -1;
 }

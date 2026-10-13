@@ -2,7 +2,7 @@ import { Clapperboard, KeyRound, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ApiError, onSessionExpired, request, setApiSession } from "../../api";
 import type { PublicUser } from "../../types";
-import { Button, Field, Input } from "../../ui";
+import { Alert, Button, Field, Form, Input } from "../../ui";
 import type { AuthSession } from "./types";
 import "./auth.css";
 
@@ -185,9 +185,7 @@ export function AuthBoundary({
         ) : logoutPending ? (
           <>
             <h2>完成退出</h2>
-            <p role="alert" className="auth-error">
-              {error}
-            </p>
+            <Alert tone="danger">{error}</Alert>
             <Button variant="primary" onClick={() => void logout()}>
               重试退出
             </Button>
@@ -202,9 +200,7 @@ export function AuthBoundary({
         ) : (
           <>
             <h2>暂时无法连接工作台</h2>
-            <p role="alert" className="auth-error">
-              {error}
-            </p>
+            <Alert tone="danger">{error}</Alert>
             <Button variant="primary" onClick={() => void loadSession()}>
               重新连接
             </Button>
@@ -246,7 +242,7 @@ function LoginForm({
           ? "管理员负责创建团队账户。创建后，已有项目将归入此账户。"
           : "使用管理员为你创建的账户，进入有你参与的项目。"}
       </p>
-      <form
+      <Form
         className="auth-form"
         aria-label={setupRequired ? "创建管理员账户" : "登录账户"}
         onSubmit={async (event) => {
@@ -272,7 +268,6 @@ function LoginForm({
             setPassword("");
             onAuthenticated(next);
           } catch (failure) {
-            setPassword("");
             setError((failure as Error).message);
           } finally {
             pending.current = false;
@@ -284,13 +279,14 @@ function LoginForm({
           label="用户名"
           htmlFor={`${id}-username`}
           hint={setupRequired ? "3–64 位字母、数字、下划线、短横线或点。" : undefined}
+          validationMessage="用户名须为 3–64 位字母、数字、下划线、短横线或点，例如 editor_01。"
         >
           <Input
             name="username"
             autoComplete="username"
             required
             maxLength={64}
-            pattern={setupRequired ? "[A-Za-z0-9_.\\-]{3,64}" : undefined}
+            pattern={"[A-Za-z0-9_.\\-]{3,64}"}
             value={username}
             disabled={busy}
             onChange={(event) => setUsername(event.target.value)}
@@ -346,15 +342,11 @@ function LoginForm({
             />
           </Field>
         )}
-        {(error || notice) && (
-          <p className="auth-error" role="alert">
-            {error || notice}
-          </p>
-        )}
+        {(error || notice) && <Alert tone="danger">{error || notice}</Alert>}
         <Button type="submit" variant="primary" loading={busy}>
           {setupRequired ? "创建账户并进入" : "登录工作台"}
         </Button>
-      </form>
+      </Form>
       <p className="auth-footnote">
         {setupRequired ? "已有管理员？" : "首次启用或登录状态有变化？"}
         <button type="button" disabled={busy} onClick={onRefresh}>

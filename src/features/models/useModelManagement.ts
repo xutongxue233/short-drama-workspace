@@ -23,6 +23,8 @@ export function useModelManagement(
   const [confirmTest, setConfirmTest] = useState<Provider | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, ConnectionTestResult>>({});
+  const [error, setError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const providers = state.providers.filter(
     (item) =>
       (filter === "all" || item.kind === filter) &&
@@ -38,13 +40,17 @@ export function useModelManagement(
     setEditing(provider);
   }
   async function remove(provider: Provider) {
+    if (busy) return;
     setBusy(provider.id);
+    setDeleteError("");
     try {
       await mutate(`/providers/${provider.id}`, undefined, "DELETE");
       notify("模型服务已删除");
       setConfirmDelete(null);
-    } catch {
-      /* The workspace displays API errors. */
+    } catch (cause) {
+      setDeleteError(
+        cause instanceof Error ? cause.message : "删除模型服务失败，请重试。",
+      );
     } finally {
       setBusy(null);
     }
@@ -65,13 +71,16 @@ export function useModelManagement(
         latencyMs: result?.latencyMs,
       };
       setResults((previous) => ({ ...previous, [provider.id]: entry }));
-      notify(entry.ok ? "连接测试通过" : entry.message, entry.ok ? "success" : "error");
-    } catch {
+      if (entry.ok) notify("连接测试通过");
+    } catch (cause) {
       setResults((previous) => ({
         ...previous,
         [provider.id]: {
           ok: false,
-          message: "连接测试失败，请检查接口地址、密钥和服务状态。",
+          message:
+            cause instanceof Error
+              ? cause.message
+              : "连接测试失败，请检查接口地址、密钥和服务状态。",
         },
       }));
     } finally {
@@ -80,7 +89,9 @@ export function useModelManagement(
     }
   }
   async function toggle(provider: Provider) {
+    if (busy) return;
     setBusy(provider.id);
+    setError("");
     try {
       await mutate(
         `/providers/${provider.id}`,
@@ -88,8 +99,10 @@ export function useModelManagement(
         "PATCH",
       );
       notify(`${provider.name} 已${provider.enabled ? "停用" : "启用"}`);
-    } catch {
-      /* The workspace displays API errors. */
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "更新模型服务状态失败，请重试。",
+      );
     } finally {
       setBusy(null);
     }
@@ -112,6 +125,9 @@ export function useModelManagement(
     busy,
     testingId,
     results,
+    error,
+    deleteError,
+    setDeleteError,
     openEditor,
     remove,
     test,

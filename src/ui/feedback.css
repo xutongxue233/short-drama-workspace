@@ -1,0 +1,71 @@
+.ui-alert {
+  --alert-color: var(--ui-accent);
+  --alert-surface: var(--ui-accent-soft);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--alert-color) 22%, white);
+  border-radius: var(--ui-radius-md);
+  background: var(--alert-surface);
+  color: var(--ui-ink);
+  font: 13px/1.65 var(--ui-font);
+  overflow-wrap: anywhere;
+}
+.ui-alert-success {
+  --alert-color: var(--ui-success);
+  --alert-surface: var(--ui-success-soft);
+}
+.ui-alert-warning {
+  --alert-color: var(--ui-warning);
+  --alert-surface: var(--ui-warning-soft);
+}
+.ui-alert-danger {
+  --alert-color: var(--ui-danger);
+  --alert-surface: var(--ui-danger-soft);
+}
+.ui-alert-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--alert-color);
+}
+.ui-alert-content {
+  flex: 1;
+  min-width: 0;
+}
+.ui-alert-title {
+  display: block;
+  font-weight: 600;
+}
+.ui-alert-title + .ui-alert-message {
+  margin-top: 2px;
+}
+.ui-alert-message > :first-child {
+  margin-top: 0;
+}
+.ui-alert-message > :last-child {
+  margin-bottom: 0;
+}
+.ui-alert-action {
+  flex: 0 0 auto;
+  align-self: center;
+}
+.ui-form-errors {
+  margin-top: 12px;
+  color: var(--ui-danger);
+  font: 12px/1.6 var(--ui-font);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .ui-alert {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+  .ui-alert-content {
+    flex-basis: calc(100% - 27px);
+  }
+  .ui-alert-action {
+    margin-left: 27px;
+  }
+}

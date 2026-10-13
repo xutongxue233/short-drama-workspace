@@ -15,9 +15,9 @@
   color: var(--muted);
   font-size: 12px;
 }
-.library-pagination [role="alert"] {
+.library-pagination > .ui-alert {
   flex-basis: 100%;
-  text-align: center;
+  text-align: left;
   overflow-wrap: anywhere;
 }
 .asset-library-scope .ui-select {

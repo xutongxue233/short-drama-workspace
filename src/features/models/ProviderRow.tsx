@@ -1,6 +1,6 @@
-import { Check, Clock3, KeyRound, Pencil, Trash2, Unplug, Zap } from "lucide-react";
+import { Clock3, KeyRound, Pencil, Trash2, Zap } from "lucide-react";
 import { type Provider } from "../../types";
-import { Badge, Button, IconButton, Switch } from "../../ui";
+import { Alert, Badge, Button, IconButton, Switch } from "../../ui";
 import { kindIcons, protocolLabels } from "./modelConfig";
 import { type ConnectionTestResult } from "./useModelManagement";
 
@@ -58,24 +58,24 @@ export function ProviderRow({
             <KeyRound size={12} />
             {provider.hasKey ? "密钥已保存" : "未设置密钥"}
           </span>
-          {result ? (
-            <span
-              className={result.ok ? "settings-test-success" : "settings-test-failure"}
-              title={result.message}
-            >
-              {result.ok ? <Check size={12} /> : <Unplug size={12} />}
-              <span>{result.ok ? "最近测试通过" : result.message}</span>
-              {result.ok && typeof result.latencyMs === "number" && (
-                <small>{result.latencyMs} ms</small>
-              )}
-            </span>
-          ) : (
+          {!result && (
             <span className="settings-not-tested">
               <Clock3 size={12} />
               尚未测试连接
             </span>
           )}
         </div>
+        {result && (
+          <Alert
+            tone={result.ok ? "success" : "danger"}
+            title={result.ok ? "最近测试通过" : "连接测试失败"}
+          >
+            {result.message}
+            {result.ok && typeof result.latencyMs === "number"
+              ? `（${result.latencyMs} ms）`
+              : ""}
+          </Alert>
+        )}
       </div>
       <div className="settings-provider-actions">
         <Button

@@ -14,7 +14,15 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import type { Action } from "../../../shared/contracts";
 import { projectPermissions } from "../../../shared/project-members";
 import type { Agent, Approval, Project } from "../../../types";
-import { Button, Field, Input, Select, Textarea } from "../../../ui";
+import {
+  Alert,
+  Button,
+  Field,
+  Input,
+  Select,
+  Textarea,
+  fieldDescriptionId,
+} from "../../../ui";
 import { AssetMedia } from "../../assets/components/AssetMedia";
 import { characterImageKey, characterReview } from "../character-review";
 import { CharacterImagePreview } from "./CharacterImagePreview";
@@ -162,7 +170,12 @@ function ApprovalForm({
     if (locked || pending.current) return;
     setAttempted(true);
     setFailure("");
-    if (revising && !feedback.trim()) return;
+    if (revising && !feedback.trim()) {
+      (
+        form.current?.elements.namedItem("feedback") as HTMLTextAreaElement | null
+      )?.focus();
+      return;
+    }
     if (!revising && isCharacterPilot && !pilotReady) return;
     if (!revising && finalReviewIssue) return;
     if (!revising && Object.keys(errors).length) {
@@ -225,7 +238,7 @@ function ApprovalForm({
       </div>
       <h3 id={`${id}-title`}>{approval.title}</h3>
       {!canEdit && (
-        <p className="form-info">等待项目所有者或编辑者确认，你可以查看当前方案。</p>
+        <Alert tone="info">等待项目所有者或编辑者确认，你可以查看当前方案。</Alert>
       )}
       <p>
         {isCharacterPilot
@@ -312,11 +325,11 @@ function ApprovalForm({
                 ))}
               </div>
             ) : (
-              <p className="approval-character-empty" role="status">
+              <Alert tone="warning">
                 {isCharacterPilot
                   ? "本轮样板尚未就绪，请先修改或补全样板后再确认。其余角色将在样板通过后生成。"
                   : "当前没有有效的角色资产，请提出修改，补全角色设定后再确认。"}
-              </p>
+              </Alert>
             )}
           </details>
           <details className="approval-character-guidance" open={!isCharacterPilot}>
@@ -351,23 +364,37 @@ function ApprovalForm({
           </div>
           {finalReviewIssue &&
             (characters.length > 0 || review.missingNames.length > 0) && (
-              <p className="approval-character-empty" role="status">
-                {finalReviewIssue}
-              </p>
+              <Alert tone="warning">{finalReviewIssue}</Alert>
             )}
         </div>
       )}
       {styles && styles.length > 0 && (
-        <div className="approval-style-field">
+        <Field
+          className="approval-style-field"
+          htmlFor={`${id}-style`}
+          label={styleField?.label ?? "视觉风格"}
+          hint={styleField?.help}
+          error={attempted && !revising ? errors.style : undefined}
+        >
           <div className="approval-section-label">
-            <strong>{styleField?.label ?? "视觉风格"}</strong>
             {styles.includes(project.style) && <span>已沿用项目设置，可调整</span>}
           </div>
-          <div className="style-options" role="group" aria-label="视觉风格选项">
+          <div
+            className="style-options"
+            role="group"
+            aria-label="视觉风格选项"
+            aria-describedby={
+              attempted && !revising && errors.style
+                ? fieldDescriptionId(`${id}-style`)
+                : undefined
+            }
+          >
             {styles.map((option, index) => (
               <button
                 type="button"
                 key={option}
+                id={index === 0 ? `${id}-style` : undefined}
+                name={index === 0 ? "style" : undefined}
                 className={answers.style === option ? "selected" : ""}
                 aria-pressed={answers.style === option}
                 disabled={locked || revising}
@@ -389,13 +416,7 @@ function ApprovalForm({
               </button>
             ))}
           </div>
-          {styleField?.help && <p className="approval-field-help">{styleField.help}</p>}
-          {attempted && !revising && errors.style && (
-            <p className="approval-form-error" role="alert">
-              {errors.style}
-            </p>
-          )}
-        </div>
+        </Field>
       )}
       {fields.some((field) => field.id !== "style") && (
         <div className="approval-fields">
@@ -454,6 +475,8 @@ function ApprovalForm({
           }
         >
           <Textarea
+            name="feedback"
+            required={revising}
             maxLength={5000}
             placeholder={
               revising
@@ -481,11 +504,7 @@ function ApprovalForm({
           </p>
         </div>
       )}
-      {failure && (
-        <p className="approval-form-error" role="alert">
-          {failure}
-        </p>
-      )}
+      {failure && <Alert tone="danger">{failure}</Alert>}
       <div className="approval-bottom">
         <div>
           <Button

@@ -7,12 +7,12 @@ import {
   LockKeyhole,
   Plus,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { TextContent } from "../../components/TextContent";
 import type { Action } from "../../shared/contracts";
 import { projectPermissions } from "../../shared/project-members";
 import type { Project } from "../../types";
-import { Button, IconButton } from "../../ui";
+import { Button, Field, Form, IconButton, Input } from "../../ui";
 
 export function MemoryPanel({
   project,
@@ -24,6 +24,7 @@ export function MemoryPanel({
   onAction: Action;
 }) {
   const [fact, setFact] = useState("");
+  const id = useId();
   const memory = project.memory;
   const locked = busy || !projectPermissions(project).canEdit;
   const path = `/projects/${project.id}`;
@@ -115,23 +116,22 @@ export function MemoryPanel({
               </div>
             ))}
           </div>
-          <form className="fact-form" onSubmit={(event) => void saveFact(event)}>
-            <input
-              aria-label="添加项目事实"
-              disabled={locked}
-              maxLength={1000}
-              placeholder="添加一条需要始终遵循的事实…"
-              value={fact}
-              onChange={(e) => setFact(e.target.value)}
-            />
-            <IconButton
-              type="submit"
-              label="保存事实"
-              disabled={!fact.trim() || locked}
-            >
+          <Form className="fact-form" onSubmit={(event) => void saveFact(event)}>
+            <Field className="fact-form-field" htmlFor={`${id}-fact`} label="项目事实">
+              <Input
+                required
+                aria-label="添加项目事实"
+                disabled={locked}
+                maxLength={1000}
+                placeholder="添加一条需要始终遵循的事实…"
+                value={fact}
+                onChange={(e) => setFact(e.target.value)}
+              />
+            </Field>
+            <IconButton type="submit" label="保存事实" disabled={locked}>
               <Plus size={17} />
             </IconButton>
-          </form>
+          </Form>
         </section>
         <section className="memory-section">
           <h3>

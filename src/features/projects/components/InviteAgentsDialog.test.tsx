@@ -220,3 +220,24 @@ describe("project participant management", () => {
     },
   );
 });
+
+it("validates a member username inline before sending an invitation", () => {
+  const onAction = vi.fn();
+  render(
+    <InviteAgentsDialog
+      project={{ ...project, currentUserAccess: "owner" }}
+      agents={agents}
+      busy={false}
+      onAction={onAction}
+      onClose={vi.fn()}
+    />,
+  );
+  const username = screen.getByLabelText("用户名");
+  fireEvent.change(username, { target: { value: "含空格的 用户名" } });
+  fireEvent.click(screen.getByRole("button", { name: "添加到群聊" }));
+  expect(onAction).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert").textContent).toBe(
+    "用户名须为 3–64 位字母、数字、点、下划线或连字符。",
+  );
+  expect(document.activeElement).toBe(username);
+});

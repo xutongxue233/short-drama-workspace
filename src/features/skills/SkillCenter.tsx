@@ -13,6 +13,7 @@ import type { Skill } from "../../types";
 import type { SettingsProps } from "../../components/settings/types";
 import { SettingsSearch } from "../../components/settings/SettingsSearch";
 import {
+  Alert,
   Badge,
   Button,
   Dialog,
@@ -39,6 +40,7 @@ export function SkillCenter({ state, mutate, notify }: SettingsProps) {
   const [deleting, setDeleting] = useState<Skill | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [error, setError] = useState("");
   const filtered = skills.filter(
     (skill) =>
       (!showEnabled || skill.enabled) &&
@@ -49,6 +51,7 @@ export function SkillCenter({ state, mutate, notify }: SettingsProps) {
   async function toggle(skill: Skill) {
     if (busy) return;
     setBusy(skill.id);
+    setError("");
     try {
       await mutate(
         `/skills/${encodeURIComponent(skill.id)}`,
@@ -56,8 +59,8 @@ export function SkillCenter({ state, mutate, notify }: SettingsProps) {
         "PATCH",
       );
       notify(`${skill.name} 已${skill.enabled ? "停用" : "启用"}`);
-    } catch {
-      /* The workspace displays API errors. */
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "更新技能状态失败，请重试。");
     } finally {
       setBusy(null);
     }
@@ -65,6 +68,7 @@ export function SkillCenter({ state, mutate, notify }: SettingsProps) {
   async function download(skill: Skill) {
     if (busy) return;
     setBusy(skill.id);
+    setError("");
     try {
       const result = await request<{ filename: string; content: string }>(
         `/skills/${encodeURIComponent(skill.id)}/export`,
@@ -83,7 +87,7 @@ export function SkillCenter({ state, mutate, notify }: SettingsProps) {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       notify("SKILL.md 已导出");
     } catch (cause) {
-      notify(cause instanceof Error ? cause.message : "导出失败，请重试。", "error");
+      setError(cause instanceof Error ? cause.message : "导出失败，请重试。");
     } finally {
       setBusy(null);
     }
@@ -136,6 +140,7 @@ export function SkillCenter({ state, mutate, notify }: SettingsProps) {
           配置中绑定技能，供它在聊天与制作时使用。
         </p>
       </div>
+      {error && <Alert tone="danger">{error}</Alert>}
       {skills.length > 0 && (
         <div className="settings-toolbar">
           <SettingsSearch
@@ -300,11 +305,7 @@ export function SkillCenter({ state, mutate, notify }: SettingsProps) {
                 : "这个技能尚未绑定 Agent。"}{" "}
               如需保留内容，可先取消并导出 SKILL.md。
             </p>
-            {deleteError && (
-              <p className="skill-error" role="alert">
-                {deleteError}
-              </p>
-            )}
+            {deleteError && <Alert tone="danger">{deleteError}</Alert>}
           </DialogBody>
           <DialogFooter>
             <DialogClose>取消</DialogClose>

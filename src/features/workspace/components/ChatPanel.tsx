@@ -3,7 +3,7 @@ import type { Action } from "../../../shared/contracts";
 import type { Agent, Project, Skill, WorkflowNode } from "../../../types";
 import { ChatComposer } from "./ChatComposer";
 import { ChatHistory } from "./ChatHistory";
-import { Button } from "../../../ui";
+import { Alert, Button } from "../../../ui";
 import { useMessageHistory } from "../useMessageHistory";
 
 export function ChatPanel({
@@ -150,7 +150,9 @@ export function ChatPanel({
             >
               {messageHistory.error ? "重试加载更早消息" : "查看更早消息"}
             </Button>
-            {messageHistory.error && <p role="alert">{messageHistory.error}</p>}
+            {messageHistory.error && (
+              <Alert tone="danger">{messageHistory.error}</Alert>
+            )}
           </div>
         )}
         <ChatHistory

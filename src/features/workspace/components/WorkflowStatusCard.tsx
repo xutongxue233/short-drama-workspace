@@ -2,7 +2,7 @@ import { ArrowRight, Clapperboard, RotateCcw } from "lucide-react";
 import type { Action } from "../../../shared/contracts";
 import { failureAdvice } from "../../../shared/workflow-failure";
 import type { Agent, Project, WorkflowNode } from "../../../types";
-import { Button } from "../../../ui";
+import { Alert, Button } from "../../../ui";
 import { characterReview } from "../character-review";
 
 function CharacterProgress({
@@ -172,13 +172,13 @@ export function WorkflowStatusCard({
       </p>
       {next.id === "characters" && <CharacterProgress project={project} node={next} />}
       {failed && next.error && (
-        <div className="workflow-handoff-error">
+        <Alert tone="danger" className="workflow-handoff-feedback">
           <p>{failureAdvice(next.error)}</p>
           <details>
             <summary>查看原始错误详情</summary>
             <pre>{next.error}</pre>
           </details>
-        </div>
+        </Alert>
       )}
       {!generatingCharacters && (
         <div className="workflow-handoff-next">

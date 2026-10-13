@@ -1,4 +1,5 @@
 @import "./select.css";
+@import "./feedback.css";
 
 .ui-dialog-host,
 .ui-dialog-host *,
@@ -270,7 +271,7 @@
 .ui-field-description {
   margin: 0;
   color: var(--ui-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }

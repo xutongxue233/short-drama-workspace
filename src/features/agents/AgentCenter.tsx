@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Search, Users } from "lucide-react";
 import { type Agent } from "../../types";
-import { Button, Select } from "../../ui";
+import { Alert, Button, Select } from "../../ui";
 import { type SettingsProps } from "../../components/settings/types";
 import { AgentEditor } from "./AgentEditor";
 import { AgentCard } from "./AgentCard";
@@ -109,11 +109,7 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
           {filtered.length} / {state.agents.length} 位成员
         </span>
       </div>
-      {error && (
-        <p className="agent-form-error" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <Alert tone="danger">{error}</Alert>}
       <div className="settings-agent-grid">
         {filtered.map((agent) => (
           <AgentCard

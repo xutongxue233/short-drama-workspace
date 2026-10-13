@@ -1,6 +1,8 @@
-import { BookOpen, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import {
+  Alert,
+  Form,
   Button,
   Dialog,
   DialogBody,
@@ -26,6 +28,7 @@ export function NewProjectDialog({
   const [genre, setGenre] = useState("悬疑");
   const [style, setStyle] = useState("真人短剧");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const close = () => {
     if (!saving) onClose();
   };
@@ -37,7 +40,7 @@ export function NewProjectDialog({
       busy={saving}
       dirty={Boolean(name || description || genre !== "悬疑" || style !== "真人短剧")}
     >
-      <form
+      <Form
         aria-label="创建项目"
         aria-busy={saving || undefined}
         onSubmit={async (e) => {
@@ -45,6 +48,7 @@ export function NewProjectDialog({
           if (pending.current || !name.trim()) return;
           pending.current = true;
           setSaving(true);
+          setError("");
           try {
             await onCreate({
               name: name.trim(),
@@ -52,8 +56,12 @@ export function NewProjectDialog({
               genre,
               style,
             });
-          } catch {
-            /* Keep the form so the request can be retried. */
+          } catch (cause) {
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "创建失败，请重试。填写内容已保留。",
+            );
           } finally {
             pending.current = false;
             setSaving(false);
@@ -107,27 +115,22 @@ export function NewProjectDialog({
               </Select>
             </Field>
           </div>
-          <div className="form-info">
-            <BookOpen size={16} aria-hidden="true" />
+          <Alert tone="info">
             <span>
               创建后导入本集要改编的章节或片段，团队会据此创作一集。
               无需确定总集数，也无需上传整本小说。
             </span>
-          </div>
+          </Alert>
+          {error && <Alert tone="danger">{error}</Alert>}
         </DialogBody>
         <DialogFooter>
           <DialogClose disabled={saving}>取消</DialogClose>
-          <Button
-            variant="primary"
-            loading={saving}
-            disabled={saving || !name.trim()}
-            type="submit"
-          >
+          <Button variant="primary" loading={saving} disabled={saving} type="submit">
             <Plus size={15} />
             创建项目群聊
           </Button>
         </DialogFooter>
-      </form>
+      </Form>
     </Dialog>
   );
 }

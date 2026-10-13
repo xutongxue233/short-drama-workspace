@@ -150,13 +150,6 @@
   font-size: 12px;
   line-height: 1.8;
 }
-.skill-error {
-  margin: 0;
-  color: var(--ui-danger);
-  font-size: 12px;
-  line-height: 1.8;
-  overflow-wrap: anywhere;
-}
 .skill-import-file {
   flex-wrap: wrap;
 }

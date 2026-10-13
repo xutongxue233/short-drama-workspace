@@ -1,49 +1,38 @@
-.toast {
+.ui-toast {
   position: fixed;
   bottom: max(24px, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   z-index: 2000;
-  background: #46334f;
-  color: #fff8ff;
-  box-shadow: 0 6px 25px #27143825;
-  border: 1px solid #584169;
-  border-radius: 9px;
-  padding: 13px 15px;
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  box-shadow: 0 8px 30px #29273420;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  padding: 10px 12px 10px 16px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 12px;
+  gap: 10px;
+  font: 13px/1.6 var(--ui-font);
   max-width: min(600px, calc(100vw - 32px));
   animation: none;
-  line-height: 1.7;
-  border-color: #664674;
+  width: max-content;
 }
-.toast > button {
-  color: #dec7ec;
-  display: grid;
-  padding: 2px;
-  margin-left: 8px;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  flex: 0 0 25px;
-  border-radius: 5px;
+.ui-toast > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-.toast > svg {
-  color: var(--secondary);
+.ui-toast > svg {
+  flex: 0 0 auto;
+  color: var(--ui-success);
+}
+.ui-toast-error > svg {
+  color: var(--ui-danger);
 }
 .connection-error {
-  background: #fff5ec;
-  color: var(--secondary);
-  padding: 10px 25px;
-  font-size: 11px;
-  display: flex;
-  justify-content: space-between;
-}
-.connection-error button {
-  color: var(--muted);
-  text-decoration: underline;
+  flex: 0 0 auto;
+  margin: 12px 16px;
 }
 .boot {
   height: 100vh;

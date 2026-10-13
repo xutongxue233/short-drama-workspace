@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogBody, DialogFooter, Button } from "../../ui";
+import { Alert, Dialog, DialogBody, DialogFooter, Button } from "../../ui";
 import { MaterialMedia } from "./MaterialMedia";
 import { MaterialActions } from "./MaterialActions";
 import { MaterialStatus } from "./MaterialCard";
@@ -54,9 +54,7 @@ export function MaterialDialog({
         </div>
         {material.error &&
           (material.status === "failed" || material.status === "local") && (
-            <p className="error-box" role="status">
-              {material.error}
-            </p>
+            <Alert tone="danger">{material.error}</Alert>
           )}
         <dl className="material-details">
           <div>

@@ -8,11 +8,15 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { cx } from "./cx";
+import { useFormValidation, type FieldValidationAttributes } from "./Form";
 
 interface FieldContextValue {
   id: string;
   descriptionId?: string;
   invalid: boolean;
+  label?: string;
+  validationMessage?: string;
+  managedValidation: boolean;
 }
 const FieldContext = createContext<FieldContextValue | null>(null);
 
@@ -26,6 +30,7 @@ export interface FieldProps extends Omit<HTMLAttributes<HTMLDivElement>, "childr
   htmlFor: string;
   hint?: ReactNode;
   error?: ReactNode;
+  validationMessage?: string;
   optional?: boolean;
   children?: ReactNode;
 }
@@ -35,20 +40,35 @@ export function Field({
   htmlFor,
   hint,
   error,
+  validationMessage,
   optional,
   children,
   className,
   ...props
 }: FieldProps) {
-  const description = error || hint;
+  const formValidation = useFormValidation();
+  const resolvedError = error || formValidation?.errors[htmlFor];
+  const description = resolvedError || hint;
   const descriptionId = description ? fieldDescriptionId(htmlFor) : undefined;
   return (
     <FieldContext.Provider
-      value={{ id: htmlFor, descriptionId, invalid: Boolean(error) }}
+      value={{
+        id: htmlFor,
+        descriptionId,
+        invalid: Boolean(resolvedError),
+        label: typeof label === "string" ? label : undefined,
+        validationMessage,
+        managedValidation: Boolean(formValidation),
+      }}
     >
       <div
         {...props}
-        className={cx("ui-field", Boolean(error) && "ui-field-invalid", className)}
+        data-validation-field={formValidation ? htmlFor : undefined}
+        className={cx(
+          "ui-field",
+          Boolean(resolvedError) && "ui-field-invalid",
+          className,
+        )}
       >
         <label className="ui-field-label" htmlFor={htmlFor}>
           <span>{label}</span>
@@ -58,8 +78,11 @@ export function Field({
         {description && (
           <div
             id={descriptionId}
-            className={cx("ui-field-description", Boolean(error) && "ui-field-error")}
-            role={error ? "alert" : undefined}
+            className={cx(
+              "ui-field-description",
+              Boolean(resolvedError) && "ui-field-error",
+            )}
+            role={resolvedError ? "alert" : undefined}
           >
             {description}
           </div>
@@ -81,10 +104,20 @@ export function useFieldControl(
     "aria-invalid": invalid ?? (linkedField?.invalid || undefined),
     "aria-describedby":
       [describedBy, linkedField?.descriptionId].filter(Boolean).join(" ") || undefined,
+    ...(linkedField
+      ? {
+          "data-validation-field": linkedField.managedValidation
+            ? linkedField.id
+            : undefined,
+          "data-validation-label": linkedField.label,
+          "data-validation-message": linkedField.validationMessage,
+        }
+      : {}),
   };
 }
 
-export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps
+  extends InputHTMLAttributes<HTMLInputElement>, FieldValidationAttributes {
   invalid?: boolean;
 }
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
@@ -110,7 +143,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   );
 });
 
-export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface TextareaProps
+  extends TextareaHTMLAttributes<HTMLTextAreaElement>, FieldValidationAttributes {
   invalid?: boolean;
 }
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(

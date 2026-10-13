@@ -38,31 +38,6 @@
   outline-offset: 3px;
   border-radius: 3px;
 }
-.model-picker-error,
-.model-picker-status {
-  margin: 8px 0 0;
-  padding: 9px 11px;
-  border-radius: 6px;
-  font-size: 11px;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-.model-picker-error {
-  background: #fff3ed;
-  color: #995b45;
-}
-.model-picker-status {
-  background: var(--surface-soft, #f7f5fb);
-  color: var(--muted);
-}
-.model-picker-status > strong,
-.model-picker-status > span {
-  display: block;
-}
-.model-picker-status > strong {
-  font-weight: 550;
-  color: var(--ink);
-}
 @media (max-width: 480px) {
   .model-picker-controls {
     flex-wrap: wrap;

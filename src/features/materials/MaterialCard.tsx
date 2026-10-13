@@ -1,5 +1,5 @@
 import { HardDrive, Cloud, CircleAlert, LoaderCircle, ScanEye } from "lucide-react";
-import { Badge, Button } from "../../ui";
+import { Alert, Badge, Button } from "../../ui";
 import type { Material } from "../../types";
 import { MaterialActions } from "./MaterialActions";
 import { MaterialMedia } from "./MaterialMedia";
@@ -85,9 +85,9 @@ export function MaterialCard({
         </div>
         {(material.status === "failed" ||
           (material.status === "local" && material.error)) && (
-          <p className="material-card-error" title={material.error} role="status">
+          <Alert tone="danger" className="material-card-feedback">
             {material.error || "保存失败，可重试下载。"}
-          </p>
+          </Alert>
         )}
         <div className="material-card-actions">
           <Button size="sm" variant="ghost" onClick={onOpen}>

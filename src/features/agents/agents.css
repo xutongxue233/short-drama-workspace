@@ -388,17 +388,6 @@
   cursor: pointer;
   margin-left: 4px;
 }
-.agent-form-error {
-  margin: 0 0 16px;
-  padding: 11px 13px;
-  border: 1px solid #efc6c6;
-  border-radius: 8px;
-  background: #fff5f5;
-  color: #a03939;
-  font-size: 12px;
-  line-height: 1.8;
-  overflow-wrap: anywhere;
-}
 .agent-delete-body p {
   margin-top: 0;
   font-size: 13px;
@@ -410,7 +399,7 @@
 .agent-editor-footer {
   flex-wrap: wrap;
 }
-.agent-editor-footer .agent-form-error {
+.agent-editor-footer .agent-editor-feedback {
   flex-basis: 100%;
   margin: 0;
 }

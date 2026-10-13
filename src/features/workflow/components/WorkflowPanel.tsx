@@ -11,7 +11,7 @@ import { statusNames } from "../../../shared/labels";
 import { failureSummary } from "../../../shared/workflow-failure";
 import { projectPermissions } from "../../../shared/project-members";
 import type { Agent, Project, WorkflowNode } from "../../../types";
-import { Badge, Button } from "../../../ui";
+import { Alert, Badge, Button } from "../../../ui";
 import { episodeLabel, episodeTitle, workflowOverview } from "../workflow-overview";
 
 export function WorkflowPanel({
@@ -105,7 +105,7 @@ export function WorkflowPanel({
             : `${current?.name ?? "等待制作节点"} · ${!canEdit && state === "待你确认" ? "待团队确认" : state}${current ? ` · ${agents.find((agent) => agent.id === current.agentId)?.name ?? "未配置 Agent"}` : ""}`}
         </p>
         {current?.status === "failed" && current.error && (
-          <p className="workflow-current-error">{failureSummary(current.error)}</p>
+          <Alert tone="danger">{failureSummary(current.error)}</Alert>
         )}
         {handoff && (
           <small>

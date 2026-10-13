@@ -48,6 +48,48 @@ function Harness() {
 }
 
 describe("authenticated workspace boundary", () => {
+  it("keeps a failed login password and shows the server error for correction", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json({ setupRequired: false, user: null }))
+      .mockResolvedValueOnce(json({ error: "用户名或密码不正确。" }, 401));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Harness />);
+    await screen.findByRole("heading", { name: "登录映序" });
+    fireEvent.change(screen.getByLabelText("用户名"), { target: { value: "admin" } });
+    fireEvent.change(screen.getByLabelText("密码"), {
+      target: { value: "retain-this-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "登录工作台" }));
+    await screen.findByText("用户名或密码不正确。");
+    expect((screen.getByLabelText("密码") as HTMLInputElement).value).toBe(
+      "retain-this-password",
+    );
+    expect(screen.getByRole("alert").classList.contains("ui-alert-danger")).toBe(true);
+    expect(screen.queryByText(/私有项目/)).toBeNull();
+  });
+
+  it("shows actionable username and password errors inline during setup", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(json({ setupRequired: true, user: null }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Harness />);
+    await screen.findByRole("heading", { name: "创建管理员账户" });
+    fireEvent.change(screen.getByLabelText("用户名"), {
+      target: { value: "中文名字" },
+    });
+    fireEvent.change(screen.getByLabelText("显示名称"), { target: { value: "导演" } });
+    fireEvent.change(screen.getByLabelText("密码"), {
+      target: { value: "elevenchars" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "创建账户并进入" }));
+    expect(screen.getByText(/用户名须为 3–64 位/)).toBeTruthy();
+    expect(screen.getByText("密码至少需要 12 个字符")).toBeTruthy();
+    expect(screen.getByLabelText("用户名").getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByRole("form").getAttribute("novalidate")).not.toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
   it("does not mount private data before login and forwards the session CSRF on logout", async () => {
     const fetchMock = vi
       .fn()
@@ -186,6 +228,26 @@ describe("authenticated workspace boundary", () => {
 });
 
 describe("account management", () => {
+  it("validates a short replacement password locally without hiding the save action", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <AccountDialog
+        user={admin}
+        onClose={vi.fn()}
+        onLogout={vi.fn()}
+        onSessionChange={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("当前密码"), {
+      target: { value: "current-password" },
+    });
+    fireEvent.change(screen.getByLabelText("新密码"), { target: { value: "short" } });
+    fireEvent.click(screen.getByRole("button", { name: "更新密码" }));
+    expect(screen.getByText("新密码至少需要 12 个字符")).toBeTruthy();
+    expect(screen.getByLabelText("新密码").getAttribute("aria-invalid")).toBe("true");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("changes the password, clears secret inputs and installs the rotated session", async () => {
     const next = { setupRequired: false, user: admin, csrfToken: "rotated-token" };
     const onSessionChange = vi.fn();

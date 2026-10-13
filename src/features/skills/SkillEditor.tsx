@@ -3,12 +3,14 @@ import { Check } from "lucide-react";
 import type { Skill } from "../../types";
 import type { SettingsProps } from "../../components/settings/types";
 import {
+  Alert,
   Button,
   Dialog,
   DialogBody,
   DialogClose,
   DialogFooter,
   Field,
+  Form,
   Input,
   Switch,
   Textarea,
@@ -52,21 +54,14 @@ export function SkillEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const formId = useId();
-  const validName =
-    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(draft.name.trim()) &&
-    draft.name.trim().length <= 64;
   const dirty =
     Boolean(initialDraft) ||
     Object.keys(emptyDraft).some(
       (key) => draft[key as keyof SkillDraft] !== initial[key as keyof SkillDraft],
     );
-  const valid =
-    validName &&
-    Boolean(draft.description.trim()) &&
-    Boolean(draft.instructions.trim());
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (saving || !valid) return;
+    if (saving) return;
     setSaving(true);
     setError("");
     try {
@@ -103,24 +98,21 @@ export function SkillEditor({
       dirty={dirty}
       onClose={onClose}
     >
-      <form onSubmit={save} aria-busy={saving}>
+      <Form onSubmit={save} aria-busy={saving}>
         <DialogBody className="settings-form-body">
           <fieldset className="settings-form-fields" disabled={saving}>
             <Field
               label="技能名称"
               htmlFor={`${formId}-name`}
               hint="使用小写英文字母、数字与单个连字符，最多 64 字符。"
-              error={
-                draft.name && !validName
-                  ? "例如 review-drama；不能以连字符开头或结尾。"
-                  : undefined
-              }
+              validationMessage="请使用小写英文字母、数字与单个连字符，例如 review-drama；不能以连字符开头或结尾。"
             >
               <Input
                 value={draft.name}
                 onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 required
                 maxLength={64}
+                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
                 placeholder="review-drama"
                 autoComplete="off"
                 spellCheck={false}
@@ -179,26 +171,17 @@ export function SkillEditor({
                 修改名称后，聊天中需要使用新的 $名称 调用。
               </p>
             )}
-            {error && (
-              <p className="skill-error" role="alert">
-                {error}
-              </p>
-            )}
+            {error && <Alert tone="danger">{error}</Alert>}
           </fieldset>
         </DialogBody>
         <DialogFooter>
           <DialogClose disabled={saving}>取消</DialogClose>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={saving}
-            disabled={!valid || saving}
-          >
+          <Button type="submit" variant="primary" loading={saving} disabled={saving}>
             <Check size={16} />
             保存技能
           </Button>
         </DialogFooter>
-      </form>
+      </Form>
     </Dialog>
   );
 }

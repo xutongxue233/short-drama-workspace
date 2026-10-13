@@ -19,8 +19,10 @@ import { createPortal } from "react-dom";
 import { Check, Search } from "lucide-react";
 import { useFieldControl } from "./Field";
 import { cx } from "./cx";
+import type { FieldValidationAttributes } from "./Form";
 
-export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectProps
+  extends SelectHTMLAttributes<HTMLSelectElement>, FieldValidationAttributes {
   invalid?: boolean;
   searchable?: boolean;
   searchPlaceholder?: string;
@@ -82,7 +84,7 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
   else if (ref) ref.current = value;
 }
 
-/** The native element handles form submission/validation; only the custom control is exposed. */
+/** The native element retains form values/constraints; validation targets the visible control. */
 const SingleSelect = forwardRef<HTMLSelectElement, SelectProps>(function SingleSelect(
   {
     children,
@@ -379,6 +381,7 @@ const SingleSelect = forwardRef<HTMLSelectElement, SelectProps>(function SingleS
         {...buttonProps}
         ref={triggerRef}
         id={controlId}
+        data-validation-control={`${controlId}-native`}
         type="button"
         role={isOpen && searchable ? "button" : "combobox"}
         value={selectedValue}
@@ -408,6 +411,11 @@ const SingleSelect = forwardRef<HTMLSelectElement, SelectProps>(function SingleS
         <span className="ui-select-value">{selected?.label ?? selectedValue}</span>
       </button>
       <select
+        id={`${controlId}-native`}
+        data-validation-target={controlId}
+        data-validation-field={props["data-validation-field"]}
+        data-validation-label={props["data-validation-label"]}
+        data-validation-message={props["data-validation-message"]}
         ref={(element) => {
           nativeRef.current = element;
           assignRef(forwardedRef, element);
@@ -440,6 +448,7 @@ const SingleSelect = forwardRef<HTMLSelectElement, SelectProps>(function SingleS
           <div
             ref={popupRef}
             className="ui-select-popup"
+            data-validation-owner={controlId}
             popover={
               typeof HTMLElement.prototype.showPopover === "function"
                 ? "manual"

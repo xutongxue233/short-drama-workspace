@@ -25,7 +25,7 @@ import { MaterialLibrary } from "../features/materials";
 import type { AssetSelection, Tab, View } from "../shared/contracts";
 import { projectPermissions } from "../shared/project-members";
 import type { Project, WorkflowNode } from "../types";
-import { Button, Dialog, DialogBody } from "../ui";
+import { Alert, Button, Dialog, DialogBody } from "../ui";
 import { HelpDialog } from "./components/HelpDialog";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { Toast } from "./components/Toast";
@@ -133,10 +133,17 @@ export function WorkspaceApp({
           onChooseProject={chooseProject}
         />
         {error && (
-          <div className="connection-error" role="alert">
+          <Alert
+            tone="danger"
+            className="connection-error"
+            action={
+              <Button size="sm" onClick={() => void refresh()}>
+                重新连接
+              </Button>
+            }
+          >
             连接暂时中断：{error}
-            <button onClick={() => void refresh()}>重试</button>
-          </div>
+          </Alert>
         )}
         {activeView === "agents" && isAdmin ? (
           <div key="agents" className="management-scroll">
@@ -321,10 +328,12 @@ export function WorkspaceApp({
         >
           <DialogBody>
             {error ? (
-              <>
-                <p role="alert">{error}</p>
-                <Button onClick={() => void refresh()}>重试</Button>
-              </>
+              <Alert
+                tone="danger"
+                action={<Button onClick={() => void refresh()}>重试</Button>}
+              >
+                {error}
+              </Alert>
             ) : (
               <p role="status">正在加载记录…</p>
             )}

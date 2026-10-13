@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useProjectItems } from "../../components/hooks/useProjectItems";
 import type { AssetSelection } from "../../shared/contracts";
 import type { Asset, Project } from "../../types";
-import { Badge, Button, EmptyState, Select } from "../../ui";
+import { Alert, Badge, Button, EmptyState, Select } from "../../ui";
 import { AssetGallery } from "./components/AssetGallery";
 
 type LibraryProject = Pick<Project, "id" | "name"> & Partial<Pick<Project, "assets">>;
@@ -105,12 +105,16 @@ function ProjectAssets({
       {remote && (page.error || page.hasMore) && (
         <div className="library-pagination">
           {page.error && (
-            <>
-              <span role="alert">{page.error}</span>
-              <Button size="sm" onClick={page.retry} disabled={page.loading}>
-                重试加载资产
-              </Button>
-            </>
+            <Alert
+              tone="danger"
+              action={
+                <Button size="sm" onClick={page.retry} disabled={page.loading}>
+                  重试加载资产
+                </Button>
+              }
+            >
+              {page.error}
+            </Alert>
           )}
           {page.hasMore && !page.error && (
             <Button

@@ -16,7 +16,7 @@ import { statusNames } from "../../../shared/labels";
 import { projectMembers, projectPermissions } from "../../../shared/project-members";
 import { failureSummary } from "../../../shared/workflow-failure";
 import type { Agent, Project, WorkflowNode } from "../../../types";
-import { Badge, IconButton } from "../../../ui";
+import { Alert, Badge, IconButton } from "../../../ui";
 import {
   agentWorkState,
   episodeLabel,
@@ -134,7 +134,7 @@ export function ProjectInspector({
             </p>
           )}
           {current?.error && current.status === "failed" && (
-            <p className="current-task-error">{failureSummary(current.error)}</p>
+            <Alert tone="danger">{failureSummary(current.error)}</Alert>
           )}
           {project.approval && (
             <p className="current-task-hint">{project.approval.title}</p>

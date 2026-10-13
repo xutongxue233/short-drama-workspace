@@ -1,7 +1,7 @@
 import type { Action, AssetSelection, Tab } from "../../shared/contracts";
 import type { Agent, Project, PublicUser, Skill, WorkflowNode } from "../../types";
 import { projectPermissions } from "../../shared/project-members";
-import { Badge } from "../../ui";
+import { Alert, Badge } from "../../ui";
 import { AssetGallery } from "../assets";
 import { MemoryPanel } from "../memory";
 import { MaterialLibrary } from "../materials";
@@ -60,16 +60,14 @@ export function ProjectWorkspace({
         onEpisodes={onEpisodes}
       />
       {!canEdit && (
-        <div className="form-info" role="status">
+        <Alert tone="info">
           {canChat
             ? "你可以参与群聊和查看成果；制作由项目所有者或编辑者负责。"
             : "你拥有只读权限，可以查看群聊和项目成果。"}
-        </div>
+        </Alert>
       )}
       {project.backgroundTask === "image-test" && (
-        <div className="form-info" role="status">
-          图片测试进行中，完成后可继续创作与编辑。
-        </div>
+        <Alert tone="info">图片测试进行中，完成后可继续创作与编辑。</Alert>
       )}
       <div className="project-body">
         <div

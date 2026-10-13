@@ -1,15 +1,17 @@
 import { Trash2 } from "lucide-react";
 import { type Provider } from "../../types";
-import { Button, Dialog, DialogBody, DialogFooter } from "../../ui";
+import { Alert, Button, Dialog, DialogBody, DialogFooter } from "../../ui";
 
 export function DeleteProviderDialog({
   provider,
   busy,
+  error,
   onClose,
   onConfirm,
 }: {
   provider: Provider;
   busy: boolean;
+  error?: string;
   onClose: () => void;
   onConfirm: () => void;
 }) {
@@ -25,6 +27,7 @@ export function DeleteProviderDialog({
     >
       <DialogBody className="settings-confirm-body">
         <p>已完成的作品和项目记录会保留。使用此服务的 Agent 需要重新选择模型服务。</p>
+        {error && <Alert tone="danger">{error}</Alert>}
       </DialogBody>
       <DialogFooter>
         <Button variant="secondary" onClick={onClose} disabled={busy}>

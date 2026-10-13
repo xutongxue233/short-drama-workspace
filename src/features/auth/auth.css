@@ -76,14 +76,6 @@
   display: grid;
   gap: 18px;
 }
-.auth-error {
-  color: #a03246;
-  background: #fff3f4;
-  padding: 12px;
-  border-radius: 6px;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
 .auth-footnote {
   color: var(--muted);
   margin-top: 25px;
@@ -171,10 +163,6 @@
   background: var(--accent-light);
   color: var(--accent);
   font-size: 18px;
-}
-.account-notice {
-  color: #3d7259;
-  line-height: 1.8;
 }
 .account-signout {
   display: flex;

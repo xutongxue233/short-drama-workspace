@@ -172,13 +172,16 @@ it("does not submit whitespace-only required fields or fields beyond the API lim
   expect(description.maxLength).toBe(1000);
   expect(prompt.maxLength).toBe(12000);
   fireEvent.change(role, { target: { value: "   " } });
-  expect(save.disabled).toBe(true);
+  expect(save.disabled).toBe(false);
   fireEvent.submit(save.closest("form")!);
   expect(mutate).not.toHaveBeenCalled();
+  expect(screen.getByText("请填写工作职责")).toBeTruthy();
+  expect(role.getAttribute("aria-invalid")).toBe("true");
   fireEvent.change(role, { target: { value: "对白润色" } });
   fireEvent.change(name, { target: { value: "字".repeat(81) } });
   fireEvent.submit(save.closest("form")!);
   expect(mutate).not.toHaveBeenCalled();
+  expect(screen.getByText("Agent 名称最多允许 80 个字符")).toBeTruthy();
   fireEvent.change(name, { target: { value: "字".repeat(80) } });
   fireEvent.change(description, { target: { value: "字".repeat(1000) } });
   fireEvent.change(prompt, { target: { value: "字".repeat(12000) } });

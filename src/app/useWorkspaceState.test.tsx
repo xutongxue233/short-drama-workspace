@@ -241,6 +241,21 @@ describe("workspace state lifecycle", () => {
     ).toHaveLength(1);
   });
 
+  it("leaves editor failures to inline feedback without a duplicate toast", async () => {
+    vi.mocked(request).mockImplementation((path) =>
+      path === "/state"
+        ? Promise.resolve(snapshot())
+        : Promise.reject(new Error("名称已存在")),
+    );
+    const { result } = renderHook(useWorkspaceState);
+    await act(async () => {
+      await expect(result.current.mutate("/projects", {})).rejects.toThrow(
+        "名称已存在",
+      );
+    });
+    expect(result.current.toast).toBeNull();
+  });
+
   it("reports failures and allows the next action after the failed command", async () => {
     let fail = true;
     vi.mocked(request).mockImplementation((path) => {

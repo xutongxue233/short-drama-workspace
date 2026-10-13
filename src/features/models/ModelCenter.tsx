@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link2, Plus } from "lucide-react";
-import { Button } from "../../ui";
+import { Alert, Button } from "../../ui";
 import { type SettingsProps } from "../../components/settings/types";
 import { kindLabels, type ProviderKind } from "./modelConfig";
 import { useModelManagement } from "./useModelManagement";
@@ -27,6 +27,9 @@ export function ModelCenter({ state, mutate, notify }: SettingsProps) {
     busy,
     testingId,
     results,
+    error,
+    deleteError,
+    setDeleteError,
     openEditor,
     remove,
     test,
@@ -57,6 +60,7 @@ export function ModelCenter({ state, mutate, notify }: SettingsProps) {
           {providers.length} 个模型服务
         </span>
       </div>
+      {error && <Alert tone="danger">{error}</Alert>}
       <div className="settings-provider-panel">
         <div className="settings-provider-panel-heading">
           <div className="settings-tabs" role="group" aria-label="筛选模型能力">
@@ -85,7 +89,10 @@ export function ModelCenter({ state, mutate, notify }: SettingsProps) {
                 testing={testingId === provider.id}
                 onTest={() => setConfirmTest(provider)}
                 onEdit={() => openEditor(provider)}
-                onDelete={() => setConfirmDelete(provider)}
+                onDelete={() => {
+                  setDeleteError("");
+                  setConfirmDelete(provider);
+                }}
                 onToggle={() => {
                   void toggle(provider);
                 }}
@@ -146,6 +153,7 @@ export function ModelCenter({ state, mutate, notify }: SettingsProps) {
         <DeleteProviderDialog
           provider={confirmDelete}
           busy={busy !== null}
+          error={deleteError}
           onClose={() => setConfirmDelete(null)}
           onConfirm={() => {
             void remove(confirmDelete);

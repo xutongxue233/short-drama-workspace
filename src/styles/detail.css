@@ -131,18 +131,6 @@ html {
 .lock-option > svg {
   margin-top: 2px;
 }
-.toast > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.toast.error {
-  color: #fff0f0;
-  background: #773c4d;
-  border-color: #94536a;
-}
-.toast.error > svg {
-  color: #f7c0cd;
-}
 @keyframes spin {
   to {
     transform: rotate(360deg);

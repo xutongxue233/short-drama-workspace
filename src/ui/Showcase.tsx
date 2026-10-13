@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
+  Alert,
   Badge,
   Button,
   Dialog,
@@ -19,6 +20,7 @@ import {
   DialogFooter,
   EmptyState,
   Field,
+  Form,
   IconButton,
   Input,
   Select,
@@ -143,24 +145,37 @@ export function Showcase() {
               <h2>每个输入都有回应</h2>
               <p>标签、提示、校验和焦点保持同一套规则。</p>
             </div>
-            <form
+            <Form
               onSubmit={(e) => {
                 e.preventDefault();
                 setSubmitted(true);
               }}
-              noValidate
             >
               <div className="showcase-grid">
                 <Field
                   htmlFor="example-project"
                   label="项目名称"
                   hint="给这个故事起一个容易记住的名字。"
-                  error={submitted && !name.trim() ? "请填写项目名称。" : undefined}
                 >
                   <Input
+                    required
+                    maxLength={80}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="例如：长夜有回声"
+                  />
+                </Field>
+                <Field
+                  htmlFor="example-password"
+                  label="密码校验示例"
+                  hint="至少 12 个字符，仅用于预览。"
+                >
+                  <Input
+                    type="password"
+                    minLength={12}
+                    maxLength={256}
+                    required
+                    autoComplete="new-password"
                   />
                 </Field>
                 <Field
@@ -232,7 +247,7 @@ export function Showcase() {
                     : "支持 Tab 导航与键盘操作"}
                 </span>
               </div>
-            </form>
+            </Form>
           </section>
           <section className="showcase-card">
             <div className="showcase-card-heading">
@@ -246,6 +261,19 @@ export function Showcase() {
               <Badge tone="success">已完成</Badge>
               <Badge tone="warning">待你确认</Badge>
               <Badge tone="danger">需处理</Badge>
+            </div>
+            <div className="showcase-feedback-stack">
+              <Alert tone="success">配置已保存，下次制作时生效。</Alert>
+              <Alert tone="warning" title="模型尚未配置">
+                请先配置文字模型，再开始制作。
+              </Alert>
+              <Alert
+                tone="danger"
+                title="保存未完成"
+                action={<Button size="sm">重试示例</Button>}
+              >
+                连接暂时中断，填写内容已保留。
+              </Alert>
             </div>
             <div className="showcase-switch-row">
               <div>
@@ -316,7 +344,7 @@ export function Showcase() {
           onClose={() => setDialog(false)}
           dirty={Boolean(draft)}
         >
-          <form
+          <Form
             onSubmit={(e) => {
               e.preventDefault();
               setDialog(false);
@@ -359,7 +387,7 @@ export function Showcase() {
                 完成预览
               </Button>
             </DialogFooter>
-          </form>
+          </Form>
         </Dialog>
       )}
     </main>

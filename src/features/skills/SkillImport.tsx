@@ -2,12 +2,14 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { FileUp } from "lucide-react";
 import { request } from "../../api";
 import {
+  Alert,
   Button,
   Dialog,
   DialogBody,
   DialogClose,
   DialogFooter,
   Field,
+  Form,
   Textarea,
 } from "../../ui";
 import type { SkillDraft } from "./SkillEditor";
@@ -46,7 +48,7 @@ export function SkillImport({
   }
   async function parse(event: FormEvent) {
     event.preventDefault();
-    if (busy || !markdown.trim()) return;
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
@@ -72,7 +74,7 @@ export function SkillImport({
       dirty={Boolean(markdown)}
       onClose={onClose}
     >
-      <form onSubmit={parse} aria-busy={busy}>
+      <Form onSubmit={parse} aria-busy={busy}>
         <DialogBody className="settings-form-body">
           <fieldset className="settings-form-fields" disabled={busy}>
             <div className="skill-import-file">
@@ -111,25 +113,16 @@ export function SkillImport({
                 }
               />
             </Field>
-            {error && (
-              <p className="skill-error" role="alert">
-                {error}
-              </p>
-            )}
+            {error && <Alert tone="danger">{error}</Alert>}
           </fieldset>
         </DialogBody>
         <DialogFooter>
           <DialogClose disabled={busy}>取消</DialogClose>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={busy}
-            disabled={!markdown.trim() || busy}
-          >
+          <Button type="submit" variant="primary" loading={busy} disabled={busy}>
             检查技能
           </Button>
         </DialogFooter>
-      </form>
+      </Form>
     </Dialog>
   );
 }
