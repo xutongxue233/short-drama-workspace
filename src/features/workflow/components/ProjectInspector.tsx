@@ -6,7 +6,6 @@ import {
   CircleAlert,
   ListChecks,
   LoaderCircle,
-  LockKeyhole,
   Pause,
   Plus,
 } from "lucide-react";
@@ -89,7 +88,6 @@ export function ProjectInspector({
           </dd>
         </div>
       </dl>
-      <p className="project-overview-note">持续创作，按集归档 · 总集数不限</p>
       <section className="episode-overview" aria-label="本集制作">
         <div className="inspector-section-title">
           <h4>{episodeLabel(project)} · 本集制作</h4>
@@ -253,10 +251,6 @@ export function ProjectInspector({
             </div>
           );
         })}
-        <button className="invite-inline" onClick={onInvite}>
-          <Plus size={14} />
-          管理群成员
-        </button>
       </div>
       <button className="memory-mini" onClick={() => onTabChange("memory")}>
         <BrainCircuit size={19} />
@@ -269,10 +263,6 @@ export function ProjectInspector({
         </span>
         <ChevronRight size={15} />
       </button>
-      <p className="inspector-footnote">
-        <LockKeyhole size={11} />
-        角色资产与项目记忆持续复用
-      </p>
     </aside>
   );
 }

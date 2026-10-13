@@ -1,10 +1,10 @@
-import { ChevronRight, Users } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Action } from "../../../shared/contracts";
-import { projectMembers } from "../../../shared/project-members";
 import type { Agent, Project, WorkflowNode } from "../../../types";
 import { ChatComposer } from "./ChatComposer";
 import { ChatHistory } from "./ChatHistory";
+import { Button } from "../../../ui";
+import { useMessageHistory } from "../useMessageHistory";
 
 export function ChatPanel({
   project,
@@ -12,7 +12,6 @@ export function ChatPanel({
   busy,
   onAction,
   onSource,
-  onInvite,
   onAssets,
   onNode,
 }: {
@@ -21,12 +20,13 @@ export function ChatPanel({
   busy: boolean;
   onAction: Action;
   onSource: () => void;
-  onInvite: () => void;
   onAssets: () => void;
   onNode: (node: WorkflowNode) => void;
 }) {
   const [autoFollow, setAutoFollow] = useState(true);
   const [replyingAgent, setReplyingAgent] = useState<string | null>(null);
+  const messageHistory = useMessageHistory(project);
+  const anchor = useRef<{ id: string; top: number } | null>(null);
   const pendingAgentId = project.chatPending?.agentId || replyingAgent;
   const approvalId = project.approval?.id;
   const following = useRef(true);
@@ -34,6 +34,16 @@ export function ChatPanel({
   const history = useRef<HTMLDivElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const previousApproval = useRef<string | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (!anchor.current || !scroll.current) return;
+    const saved = anchor.current;
+    const element = Array.from(
+      history.current?.querySelectorAll<HTMLElement>("[data-message-id]") ?? [],
+    ).find((item) => item.dataset.messageId === saved.id);
+    if (element)
+      scroll.current.scrollTop += element.getBoundingClientRect().top - saved.top;
+    anchor.current = null;
+  }, [messageHistory.startIndex]);
   const followLatest = () => {
     const viewport = scroll.current;
     if (viewport) {
@@ -59,7 +69,7 @@ export function ChatPanel({
       }
     }
     if (following.current) followLatest();
-  }, [project.messages.length, approvalId, project.running, pendingAgentId]);
+  }, [messageHistory.messages.length, approvalId, project.running, pendingAgentId]);
   useEffect(() => {
     const observer = new ResizeObserver(() => {
       if (following.current) followLatest();
@@ -70,18 +80,6 @@ export function ChatPanel({
   }, []);
   return (
     <div className="chat-panel">
-      <div className="chat-context-bar">
-        <span>
-          <Users size={14} />
-          <strong>本集创作群 · {projectMembers(project, agents).length} 位成员</strong>
-          <i />
-          总制片统筹，团队按制作节点协作。
-        </span>
-        <button className="text-button" onClick={onInvite}>
-          群成员
-          <ChevronRight size={12} />
-        </button>
-      </div>
       <div
         className="chat-scroll"
         ref={scroll}
@@ -122,8 +120,37 @@ export function ChatPanel({
           }
         }}
       >
+        {messageHistory.nextBefore !== null && (
+          <div className="chat-history-pagination">
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={messageHistory.loading}
+              onClick={async () => {
+                following.current = false;
+                userScrolling.current = true;
+                setAutoFollow(false);
+                const top = scroll.current?.getBoundingClientRect().top ?? 0;
+                const visible = Array.from(
+                  history.current?.querySelectorAll<HTMLElement>("[data-message-id]") ??
+                    [],
+                ).find((item) => item.getBoundingClientRect().bottom > top);
+                anchor.current = visible?.dataset.messageId
+                  ? {
+                      id: visible.dataset.messageId,
+                      top: visible.getBoundingClientRect().top,
+                    }
+                  : null;
+                if (!(await messageHistory.loadEarlier())) anchor.current = null;
+              }}
+            >
+              {messageHistory.error ? "重试加载更早消息" : "查看更早消息"}
+            </Button>
+            {messageHistory.error && <p role="alert">{messageHistory.error}</p>}
+          </div>
+        )}
         <ChatHistory
-          project={project}
+          project={{ ...project, messages: messageHistory.messages }}
           agents={agents}
           busy={busy}
           onAction={(...args) => {
@@ -134,6 +161,7 @@ export function ChatPanel({
           }}
           onNode={onNode}
           onAssets={onAssets}
+          onSource={onSource}
           historyRef={history}
           pendingAgentId={pendingAgentId}
         />

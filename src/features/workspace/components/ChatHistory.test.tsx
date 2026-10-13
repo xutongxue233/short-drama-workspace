@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Agent, Message, Project } from "../../../types";
 import { ChatHistory } from "./ChatHistory";
@@ -49,7 +49,8 @@ function history(
     running: false,
     ...patch,
   };
-  return render(
+  const onSource = vi.fn();
+  const view = render(
     <ChatHistory
       project={project}
       agents={agents}
@@ -57,14 +58,16 @@ function history(
       onAction={vi.fn()}
       onNode={vi.fn()}
       onAssets={vi.fn()}
+      onSource={onSource}
       historyRef={null}
       pendingAgentId={pendingAgentId}
     />,
   );
+  return { ...view, onSource };
 }
 
 describe("chat response visibility", () => {
-  it("counts the human and unique known agents, and only marks agent identities", () => {
+  it("keeps human and agent identities clear without repeating the project intro", () => {
     const view = history(
       [
         message({ id: "human", agentId: "user", content: "我批准这版剧本" }),
@@ -73,13 +76,20 @@ describe("chat response visibility", () => {
       undefined,
       { members: ["producer", "producer", "user", "missing"] },
     );
-    expect(screen.getByText("2 位成员")).toBeTruthy();
+    expect(screen.queryByText("短剧测试项目")).toBeNull();
     const rows = view.container.querySelectorAll("article.message");
     expect(rows[0].querySelector("header")?.textContent).toContain("我项目负责人");
     expect(rows[0].querySelector(".studio-member-kind")).toBeNull();
     expect(rows[1].querySelector("header")?.textContent).toContain(
       "总制片Agent制作统筹",
     );
+  });
+
+  it("offers a source import when the current episode is empty", () => {
+    const view = history([]);
+    fireEvent.click(screen.getByRole("button", { name: "导入本集原文" }));
+    expect(view.onSource).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: "开始本集创作" })).toBeTruthy();
   });
 
   it("does not attribute a missing historical member to the producer", () => {

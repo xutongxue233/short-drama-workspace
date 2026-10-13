@@ -1,3 +1,33 @@
+.asset-library-scope {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+.library-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.library-pagination [role="alert"] {
+  flex-basis: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.asset-library-scope .ui-select {
+  width: 240px;
+  max-width: 100%;
+  min-width: 0;
+}
+.asset-library-scope .ui-badge {
+  flex-shrink: 0;
+}
 .asset-controls {
   display: flex;
   align-items: center;
@@ -34,7 +64,7 @@
   color: var(--secondary);
   padding: 8px 10px;
   height: 35px;
-  flex: 0 1 155px;
+  flex: 0 1 220px;
 }
 .asset-search input {
   width: 100%;
@@ -52,7 +82,7 @@
 .asset-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
-  gap: 20px;
+  gap: 16px;
 }
 .asset-card {
   display: flex;
@@ -204,9 +234,21 @@
   font-size: 12px;
   height: auto;
   color: var(--muted);
-  min-height: 43px;
   margin: 8px 0 14px;
   overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .asset-library .page-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .asset-library-scope {
+    justify-content: space-between;
+  }
+  .asset-library-scope .ui-select {
+    width: 100%;
+  }
 }
 .asset-card footer {
   display: flex;

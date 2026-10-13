@@ -19,9 +19,6 @@
   .brand strong {
     font-size: 21px;
   }
-  .avatar-stack {
-    display: none;
-  }
   .project-title h1 {
     font-size: 21px;
   }
@@ -38,12 +35,6 @@
   .brand > div {
     display: none;
   }
-  .workspace-switch {
-    display: none;
-  }
-  .nav-label {
-    display: none;
-  }
   .project-section-title {
     display: none;
   }
@@ -56,28 +47,7 @@
   .project-search {
     display: none;
   }
-  .local-status {
-    display: none;
-  }
-  .user-profile > div {
-    display: none;
-  }
-  .user-profile > .ui-icon-button {
-    display: none;
-  }
   .nav-text {
-    display: none;
-  }
-  .main-nav .nav-count {
-    display: none;
-  }
-  .main-nav .tiny-dot {
-    display: none;
-  }
-  .local-pill {
-    display: none;
-  }
-  .top-avatar {
     display: none;
   }
   .brand-mark {
@@ -103,8 +73,9 @@
   .sidebar-bottom {
     margin-top: auto;
   }
-  .user-profile {
-    padding: 18px 7px;
+  .sidebar-help {
+    justify-content: center;
+    padding-inline: 0;
   }
   .topbar-right {
     gap: 6px;

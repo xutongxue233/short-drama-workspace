@@ -2,12 +2,12 @@ import {
   ArrowDownToLine,
   Library,
   BrainCircuit,
-  Clapperboard,
   GitBranch,
   Layers3,
   Images,
   MessageCircle,
   PanelRightClose,
+  PanelRightOpen,
   UsersRound,
 } from "lucide-react";
 import { MemberAvatar } from "../../../components/MemberIdentity";
@@ -40,26 +40,25 @@ export function ProjectHeader({
   return (
     <section className="project-header">
       <div className="project-title-row">
-        <span className="project-title-icon">
-          <Clapperboard size={23} />
-        </span>
         <div className="project-title">
           <div>
             <h1 title={project.name}>{project.name}</h1>
-            <Badge
-              tone={
-                project.running ? "accent" : project.approval ? "warning" : "neutral"
-              }
-            >
-              {project.running ? "制作中" : project.approval ? "待确认" : "创作项目"}
-            </Badge>
+            {(project.running || project.approval) && (
+              <Badge tone={project.running ? "accent" : "warning"}>
+                {project.running ? "制作中" : "待确认"}
+              </Badge>
+            )}
           </div>
           <p title={project.description || "根据本集原文，创作当前一集短剧"}>
             {project.genre}
+            {project.style && (
+              <>
+                <span className="meta-separator">·</span>
+                {project.style}
+              </>
+            )}
             <span className="meta-separator">·</span>
             当前第 {project.currentEpisode?.number ?? 1} 集
-            <span className="meta-separator">·</span>
-            本集 {project.chapters.length} 份原文
           </p>
         </div>
         <div className="project-header-actions">
@@ -88,7 +87,7 @@ export function ProjectHeader({
           >
             <span className="ui-button-content">
               <ArrowDownToLine size={15} />
-              导出项目
+              导出
             </span>
           </a>
         </div>
@@ -117,11 +116,11 @@ export function ProjectHeader({
         >
           {(
             [
-              { id: "chat", label: "创作群聊", icon: MessageCircle },
-              { id: "workflow", label: "制作流程", icon: GitBranch },
-              { id: "assets", label: "项目资产", icon: Layers3 },
-              { id: "materials", label: "项目素材", icon: Images },
-              { id: "memory", label: "项目记忆", icon: BrainCircuit },
+              { id: "chat", label: "群聊", icon: MessageCircle },
+              { id: "workflow", label: "流程", icon: GitBranch },
+              { id: "assets", label: "资产", icon: Layers3 },
+              { id: "materials", label: "素材", icon: Images },
+              { id: "memory", label: "记忆", icon: BrainCircuit },
             ] as const
           ).map((t) => (
             <button
@@ -148,7 +147,11 @@ export function ProjectHeader({
             aria-controls="project-inspector"
             onClick={() => onToggleInspector()}
           >
-            <PanelRightClose size={17} />
+            {inspectorOpen ? (
+              <PanelRightClose size={17} />
+            ) : (
+              <PanelRightOpen size={17} />
+            )}
           </IconButton>
         </div>
       </div>

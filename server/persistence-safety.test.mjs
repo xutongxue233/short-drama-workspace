@@ -33,7 +33,9 @@ function temporaryDatabase(t) {
 function persisted(filename) {
   const reader = new DatabaseSync(filename, { readOnly: true });
   try {
-    return reader.prepare("SELECT value, updated_at FROM workspace WHERE id = 1").get();
+    return ["workspace_metadata", "projects", "project_nodes", "project_messages"].map(
+      (table) => reader.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
+    );
   } finally {
     reader.close();
   }

@@ -1,35 +1,129 @@
+import { FolderOpen } from "lucide-react";
+import { useState } from "react";
+import { useProjectItems } from "../../components/hooks/useProjectItems";
 import type { AssetSelection } from "../../shared/contracts";
-import type { Project } from "../../types";
-import { Badge } from "../../ui";
+import type { Asset, Project } from "../../types";
+import { Badge, Button, EmptyState, Select } from "../../ui";
 import { AssetGallery } from "./components/AssetGallery";
+
+type LibraryProject = Pick<Project, "id" | "name"> & Partial<Pick<Project, "assets">>;
 
 export function AssetLibrary({
   projects,
+  initialProjectId,
+  remote = false,
   onOpen,
 }: {
-  projects: Project[];
+  projects: LibraryProject[];
+  initialProjectId?: string;
+  remote?: boolean;
   onOpen: (asset: AssetSelection) => void;
 }) {
-  const entries = projects.flatMap((project) =>
-    project.assets.map((asset) => ({
-      asset,
-      projectId: project.id,
-      projectName: project.name,
-    })),
-  );
-  return (
-    <div className="management-scroll">
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
+  const project =
+    projects.find((item) => item.id === selectedProjectId) ??
+    projects.find((item) => item.id === initialProjectId) ??
+    projects[0];
+  return project ? (
+    <ProjectAssets
+      key={project.id}
+      project={project}
+      projects={projects}
+      onSelect={setSelectedProjectId}
+      onOpen={onOpen}
+      remote={remote}
+    />
+  ) : (
+    <div className="management-scroll asset-library">
       <div className="page-heading">
-        <div>
-          <div className="eyebrow">YOUR CREATIVE LIBRARY</div>
-          <h1>
-            每一份灵感，都有归处<span className="heading-dot">.</span>
-          </h1>
-          <p>跨项目查看角色、场景与制作成果，守住故事的一致性。</p>
-        </div>
-        <Badge>{entries.length} 份资产</Badge>
+        <h1>资产库</h1>
       </div>
-      <AssetGallery entries={entries} onOpen={onOpen} />
+      <EmptyState
+        icon={<FolderOpen size={30} />}
+        title="暂无项目"
+        description="创建项目后，在这里查看项目资产。"
+      />
+    </div>
+  );
+}
+
+function ProjectAssets({
+  project,
+  projects,
+  onSelect,
+  onOpen,
+  remote,
+}: {
+  project: LibraryProject;
+  projects: LibraryProject[];
+  onSelect: (value: string) => void;
+  onOpen: (asset: AssetSelection) => void;
+  remote: boolean;
+}) {
+  const [type, setType] = useState("all");
+  const [search, setSearch] = useState("");
+  const page = useProjectItems<Asset>({
+    path: `/projects/${encodeURIComponent(project.id)}/assets?${new URLSearchParams({ type, q: search.trim() })}`,
+    enabled: remote,
+  });
+  const entries = (remote ? page.items : (project.assets ?? [])).map((asset) => ({
+    asset,
+    projectId: project.id,
+  }));
+  return (
+    <div className="management-scroll asset-library">
+      <div className="page-heading">
+        <h1>资产库</h1>
+        <div className="asset-library-scope">
+          <Select
+            aria-label="资产所属项目"
+            value={project.id}
+            onChange={(event) => onSelect(event.target.value)}
+          >
+            {projects.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </Select>
+          <Badge>
+            {remote ? (page.metadata?.total ?? "—") : entries.length} 份资产
+          </Badge>
+        </div>
+      </div>
+      <AssetGallery
+        entries={entries}
+        onOpen={onOpen}
+        query={
+          remote
+            ? { type, search, onTypeChange: setType, onSearchChange: setSearch }
+            : undefined
+        }
+        hideEmpty={remote && (page.loading || !!page.error)}
+      />
+      {remote && page.loading && !entries.length && <p role="status">正在加载资产…</p>}
+      {remote && (page.error || page.hasMore) && (
+        <div className="library-pagination">
+          {page.error && (
+            <>
+              <span role="alert">{page.error}</span>
+              <Button size="sm" onClick={page.retry} disabled={page.loading}>
+                重试加载资产
+              </Button>
+            </>
+          )}
+          {page.hasMore && !page.error && (
+            <Button
+              size="sm"
+              onClick={page.loadMore}
+              loading={page.loading}
+              disabled={page.loading}
+            >
+              加载更多资产
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

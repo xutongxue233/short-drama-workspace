@@ -208,7 +208,9 @@ describe("project and episode overview", () => {
   it("keeps legacy projects at episode one without inventing a final episode count", () => {
     inspector();
     expect(screen.getByText("第 01 集 · 本集制作")).toBeTruthy();
-    expect(screen.getByText(/总集数不限/)).toBeTruthy();
+    expect(
+      screen.getByText("已建剧集").parentElement?.querySelector("dd")?.textContent,
+    ).toBe("1集");
     expect(screen.queryByText("当前制作进度")).toBeNull();
   });
 

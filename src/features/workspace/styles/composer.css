@@ -1,5 +1,5 @@
 .composer-wrap {
-  padding: 13px 28px 12px;
+  padding: 10px 28px;
   background: #fff;
   position: relative;
   flex-shrink: 0;
@@ -60,20 +60,13 @@
   background: #a99be655;
 }
 .composer-recipient {
-  margin: 7px 0 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 3px 12px;
+  margin: 0;
+  min-width: 0;
+  flex: 1;
   color: var(--muted);
   font-size: 10px;
   line-height: 1.6;
   overflow-wrap: anywhere;
-}
-.composer-recipient > span {
-  color: var(--subtle);
-  margin-left: auto;
 }
 .mention-picker {
   position: absolute;
@@ -158,9 +151,6 @@
   .composer-highlight {
     font-size: 12px;
   }
-  .composer-recipient > span {
-    display: none;
-  }
 }
 .composer textarea::placeholder {
   color: var(--muted);
@@ -200,12 +190,6 @@
   background: #f0eaf8;
   color: var(--secondary);
 }
-.composer-divider {
-  height: 12px;
-  background: #e9e2f0;
-  width: 1px;
-  margin: 0 5px;
-}
 .source-text-button {
   display: flex;
   align-items: center;
@@ -240,7 +224,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 9px;
   color: var(--muted);
   gap: 3px 10px;
   font-size: 10px;
@@ -248,12 +231,6 @@
   margin: 8px auto 0;
   flex-wrap: wrap;
   line-height: 1.6;
-}
-.composer-footer > span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--muted);
 }
 .composer-footer > button {
   display: flex;

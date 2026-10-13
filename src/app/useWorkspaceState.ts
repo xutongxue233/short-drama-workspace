@@ -6,7 +6,15 @@ import type { WorkspaceState } from "../types";
 const WORKSPACE_POLL_INTERVAL_MS = 2000;
 
 /** Owns server snapshots, mutation serialization and transient notifications. */
-export function useWorkspaceState() {
+export function useWorkspaceState(scope?: {
+  projectId: string;
+  fullHistory?: boolean;
+}) {
+  const query = new URLSearchParams({ compact: "1" });
+  if (scope?.projectId) query.set("projectId", scope.projectId);
+  if (scope?.fullHistory) query.set("history", "full");
+  const snapshotPath = scope ? `/state?${query}` : "/state";
+  const requestPath = useRef(snapshotPath);
   const [state, setState] = useState<WorkspaceState | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,9 +56,14 @@ export function useWorkspaceState() {
     const isCurrent = () => mounted.current && currentLifecycle === lifecycle.current;
     const promise = (async () => {
       try {
-        const next = await request<WorkspaceState>("/state", undefined, "GET", {
-          signal: controller.signal,
-        });
+        const next = await request<WorkspaceState>(
+          requestPath.current,
+          undefined,
+          "GET",
+          {
+            signal: controller.signal,
+          },
+        );
         if (isCurrent() && seq === revision.current) {
           setState(next);
           setError("");
@@ -62,7 +75,7 @@ export function useWorkspaceState() {
           }
         }
       } catch (error) {
-        if (isCurrent())
+        if (isCurrent() && seq === revision.current && !controller.signal.aborted)
           setError(
             `${synchronizations.current.size ? "修改已保存，正在重新同步，请勿重复提交。" : ""}${(error as Error).message}`,
           );
@@ -77,6 +90,14 @@ export function useWorkspaceState() {
     pendingSnapshot.current = { controller, promise };
     return promise;
   }, []);
+  useEffect(() => {
+    if (requestPath.current === snapshotPath) return;
+    requestPath.current = snapshotPath;
+    revision.current += 1;
+    pendingSnapshot.current?.controller.abort();
+    pendingSnapshot.current = null;
+    void refresh();
+  }, [snapshotPath, refresh]);
   useEffect(() => {
     mounted.current = true;
     const waiting = synchronizations.current;

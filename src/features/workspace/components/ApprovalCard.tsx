@@ -7,7 +7,6 @@ import {
   FileText,
   Layers3,
   Maximize2,
-  ShieldCheck,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -436,11 +435,7 @@ function ApprovalForm({
           htmlFor={`${id}-feedback`}
           label={revising ? "修改意见" : "补充要求"}
           optional={!revising}
-          hint={
-            revising
-              ? "写明需要修改的内容，团队会重做当前节点。"
-              : "备注会随本次确认写入项目记忆，后续节点将读取。"
-          }
+          hint={revising ? "写明需要修改的内容，团队会重做当前节点。" : undefined}
           error={
             attempted && revising && !feedback.trim() ? "请填写修改意见" : undefined
           }
@@ -479,10 +474,6 @@ function ApprovalForm({
         </p>
       )}
       <div className="approval-bottom">
-        <span>
-          <ShieldCheck size={12} aria-hidden="true" />
-          确认结果将记入项目记忆
-        </span>
         <div>
           <Button
             variant="secondary"

@@ -1,5 +1,5 @@
 .project-header {
-  padding: 25px 28px 0;
+  padding: 16px 28px 0;
   background: white;
   flex-shrink: 0;
 }
@@ -7,18 +7,8 @@
   display: flex;
   align-items: center;
   gap: 13px;
-  min-height: 57px;
+  min-height: 46px;
   min-width: 0;
-}
-.project-title-icon {
-  height: 45px;
-  width: 45px;
-  border-radius: 11px;
-  background: #f0ecf9;
-  color: var(--secondary);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
 }
 .project-title {
   flex: 1;
@@ -31,7 +21,7 @@
   min-width: 0;
 }
 .project-title h1 {
-  font-size: 23px;
+  font-size: 21px;
   letter-spacing: -0.4px;
   font-weight: 650;
   min-width: 0;
@@ -42,7 +32,7 @@
   color: var(--ink);
 }
 .project-title p {
-  margin-top: 8px;
+  margin-top: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -57,7 +47,7 @@
 }
 .project-header-actions {
   display: flex;
-  gap: 10px;
+  gap: 7px;
   align-items: center;
   flex-shrink: 0;
 }
@@ -110,16 +100,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 21px;
+  margin-top: 10px;
   border-bottom: 1px solid var(--border);
   height: auto;
-  min-height: 45px;
+  min-height: 44px;
   gap: 14px;
 }
 .project-tabs > [role="tablist"] {
   display: flex;
   align-self: stretch;
-  gap: 25px;
+  gap: 24px;
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
@@ -129,7 +119,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 0 0 15px;
+  padding: 10px 0;
   color: var(--muted);
   position: relative;
   font-size: 12px;
@@ -167,7 +157,6 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: -10px;
   flex-shrink: 0;
 }
 .project-body {

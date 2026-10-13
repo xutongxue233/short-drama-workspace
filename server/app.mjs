@@ -6,11 +6,9 @@ import { readConfig } from "./config.mjs";
 import { HttpError } from "./http/errors.mjs";
 import { localOnly, requireJsonBody, errorHandler } from "./http/middleware.mjs";
 import { createWorkflow } from "./workflow.mjs";
-import { workflowReadiness } from "./workflow/readiness.mjs";
 import { createChatService } from "./services/chat.mjs";
 import { createMaterialService } from "./services/materials.mjs";
-import { publicProvider } from "./providers/config.mjs";
-import { projectTask } from "./services/project-tasks.mjs";
+import { mountQueryRoutes } from "./routes/queries.mjs";
 import { mountProjectsRoutes } from "./routes/projects.mjs";
 import { mountWorkflowRoutes } from "./routes/workflow.mjs";
 import { mountMemoryRoutes } from "./routes/memory.mjs";
@@ -36,7 +34,15 @@ export function createApp({
     if (!project) throw new HttpError(404, "项目不存在");
     return project;
   };
-  const dependencies = { getState, save, workflow, chat, materials, findProject };
+  const dependencies = {
+    store,
+    getState,
+    save,
+    workflow,
+    chat,
+    materials,
+    findProject,
+  };
   app.disable("x-powered-by");
   app.use(localOnly);
   app.use(express.json({ limit: "4mb" }));
@@ -51,19 +57,7 @@ export function createApp({
   app.get("/api/health", (_req, res) =>
     res.json({ ok: true, service: "frameflow-workbench", storage: "sqlite" }),
   );
-  app.get("/api/state", (_req, res) => {
-    const state = getState();
-    res.json({
-      ...state,
-      projects: state.projects.map((project) => ({
-        ...project,
-        chatPending: chat.getPending(project.id),
-        backgroundTask: projectTask(project),
-        workflowIssues: workflowReadiness(project, state),
-      })),
-      providers: state.providers.map(publicProvider),
-    });
-  });
+  mountQueryRoutes(app, dependencies);
   mountProjectsRoutes(app, dependencies);
   mountWorkflowRoutes(app, dependencies);
   mountMemoryRoutes(app, dependencies);

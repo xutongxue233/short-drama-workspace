@@ -51,11 +51,6 @@ export function MaterialDialog({
         </div>
         <div className="material-preview-status">
           <MaterialStatus status={material.status} />
-          <span>
-            {material.status === "local"
-              ? "文件已保存在工作台，可直接下载。"
-              : "当前预览使用远程地址，保存到本地后可避免链接失效。"}
-          </span>
         </div>
         {material.error &&
           (material.status === "failed" || material.status === "local") && (
@@ -98,8 +93,7 @@ export function MaterialDialog({
                 秒
                 <small className="material-detail-note">
                   分镜 v{material.videoShot.storyboardVersion} ·{" "}
-                  {material.videoShot.startSeconds}–{material.videoShot.endSeconds}{" "}
-                  秒；请求时长不代表实测时长
+                  {material.videoShot.startSeconds}–{material.videoShot.endSeconds} 秒
                 </small>
               </dd>
             </div>
@@ -116,9 +110,6 @@ export function MaterialDialog({
               <dd>
                 {videoMetadata.width} × {videoMetadata.height} ·{" "}
                 {videoMetadata.duration.toFixed(3)} 秒
-                <small className="material-detail-note">
-                  读取当前文件；交付时仍需按分镜裁切与校时。
-                </small>
               </dd>
             </div>
           )}
@@ -144,7 +135,6 @@ export function MaterialDialog({
             ) : (
               <p>本次生成未附加角色或场景参考图。</p>
             )}
-            <p>记录本次提交的参考版本，生成结果仍需目视核对。</p>
           </section>
         )}
         {material.prompt && (

@@ -26,6 +26,66 @@ afterEach(() => {
 });
 
 describe("workspace state lifecycle", () => {
+  it("requests only the selected project and ignores a late response after switching", async () => {
+    const older = deferred<WorkspaceState>();
+    const newer = deferred<WorkspaceState>();
+    vi.mocked(request).mockImplementation((path) =>
+      path.includes("projectId=one") ? older.promise : newer.promise,
+    );
+    const { result, rerender } = renderHook(
+      ({ id }) => useWorkspaceState({ projectId: id }),
+      { initialProps: { id: "one" } },
+    );
+    const signal = vi.mocked(request).mock.calls[0][3]?.signal;
+    rerender({ id: "two" });
+    expect(signal?.aborted).toBe(true);
+    expect(vi.mocked(request).mock.calls[1][0]).toBe("/state?compact=1&projectId=two");
+    const next = snapshot();
+    await act(async () => {
+      newer.resolve(next);
+    });
+    await act(async () => {
+      older.resolve(snapshot());
+    });
+    expect(result.current.state).toBe(next);
+    expect(result.current.error).toBe("");
+  });
+
+  it("loads full history only while requested and keeps a committed write synchronized across project switches", async () => {
+    const mutation = deferred<unknown>();
+    vi.mocked(request).mockImplementation((path) =>
+      path.startsWith("/state") ? Promise.resolve(snapshot()) : mutation.promise,
+    );
+    const { result, rerender } = renderHook(
+      ({ id, full }) => useWorkspaceState({ projectId: id, fullHistory: full }),
+      { initialProps: { id: "one", full: false } },
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    let writing!: Promise<boolean>;
+    act(() => {
+      writing = result.current.action("/projects/one/messages", { content: "你好" });
+    });
+    rerender({ id: "two", full: true });
+    expect(
+      vi
+        .mocked(request)
+        .mock.calls.some(
+          ([path]) => path === "/state?compact=1&projectId=two&history=full",
+        ),
+    ).toBe(true);
+    await act(async () => {
+      mutation.resolve({});
+      expect(await writing).toBe(true);
+    });
+    expect(result.current.busy).toBe(false);
+    expect(
+      vi
+        .mocked(request)
+        .mock.calls.filter(([path]) => path === "/projects/one/messages"),
+    ).toHaveLength(1);
+  });
   it("serializes a write-after-poll refresh and never applies the pre-write snapshot", async () => {
     const older = deferred<WorkspaceState>();
     const newer = deferred<WorkspaceState>();

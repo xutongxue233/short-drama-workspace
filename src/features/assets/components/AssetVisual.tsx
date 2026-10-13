@@ -27,21 +27,13 @@ export function AssetVisual({ item }: { item: Asset }) {
     storyboard: Clapperboard,
     script: FileText,
   }[item.type];
-  const label = {
-    character: "CHARACTER BIBLE",
-    storyboard: "SHOT DESIGN",
-    video: "VIDEO PRODUCTION",
-    audio: "AUDIO PRODUCTION",
-    scene: "SCENE DESIGN",
-    script: "CREATIVE DOCUMENT",
-  }[item.type];
   return (
     <>
       <span className="asset-visual-grid" />
       <Icon size={47} strokeWidth={1} aria-hidden="true" />
-      <span className="asset-preview-label">
-        {failedUrl && failedUrl === item.url ? "预览暂不可用 · 点击查看档案" : label}
-      </span>
+      {failedUrl && failedUrl === item.url && (
+        <span className="asset-preview-label">预览暂不可用</span>
+      )}
     </>
   );
 }

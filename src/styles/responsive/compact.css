@@ -2,17 +2,11 @@
   .sidebar {
     padding-top: 18px;
   }
-  .workspace-switch {
-    margin: 18px 0 15px;
-  }
   .project-section-title {
     margin-top: 16px;
   }
   .new-project-button {
     margin-bottom: 10px;
-  }
-  .user-profile {
-    padding-block: 12px;
   }
   .project-header {
     padding-top: 18px;
@@ -73,26 +67,13 @@
   .workflow-card footer > span:last-child {
     display: none;
   }
-  .approval-bottom > span {
-    flex-basis: 100%;
-  }
 }
 @container studio-content (max-width: 480px) {
   .approval-card {
     margin-left: 0;
   }
-  .intro-tags {
-    margin-left: 0;
-  }
   .memory-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .chat-context-bar > span {
-    font-size: 0;
-    gap: 6px;
-  }
-  .chat-context-bar i {
-    display: none;
   }
 }
 .style-options > button.selected .style-icon {
@@ -111,11 +92,6 @@
   .project-tabs {
     margin-top: 10px;
   }
-  .chat-context-bar {
-    min-height: 32px;
-    padding-top: 5px;
-    padding-bottom: 5px;
-  }
   .composer-wrap {
     padding-top: 8px;
     padding-bottom: 8px;
@@ -133,19 +109,12 @@
   }
 }
 @media (max-height: 500px) {
-  .chat-context-bar {
-    display: none;
-  }
   .topbar {
     height: 44px;
     min-height: 44px;
   }
   .project-title h1 {
     font-size: 19px;
-  }
-  .project-title-icon {
-    height: 36px;
-    width: 36px;
   }
   .project-tabs > [role="tablist"] > button {
     min-height: 38px;

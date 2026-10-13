@@ -3,7 +3,6 @@ import {
   AtSign,
   BookOpen,
   LoaderCircle,
-  Paperclip,
   Pause,
   Play,
   Send,
@@ -336,7 +335,7 @@ export function ChatComposer({
                 void send();
               }
             }}
-            placeholder="说说你的想法，或 @一位 Agent 开始协作…"
+            placeholder="输入消息，@ 指定成员…"
             rows={2}
           />
           {menuOpen && (
@@ -396,9 +395,6 @@ export function ChatComposer({
               <option value="auto">自动协作</option>
               <option value="discussion">仅讨论</option>
             </Select>
-            <IconButton title="导入小说章节" label="导入小说章节" onClick={onSource}>
-              <Paperclip size={18} />
-            </IconButton>
             <IconButton
               className={target ? "selected" : ""}
               title="选择回复 Agent"
@@ -410,10 +406,15 @@ export function ChatComposer({
             >
               <AtSign size={18} />
             </IconButton>
-            <span className="composer-divider" />
             <button className="source-text-button" onClick={onSource}>
               <BookOpen size={14} />
-              本集原文<span>{project.chapters.length}</span>
+              {project.chapters.length ? (
+                <>
+                  本集原文<span>{project.chapters.length}</span>
+                </>
+              ) : (
+                "导入原文"
+              )}
             </button>
             {target && (
               <button
@@ -437,45 +438,34 @@ export function ChatComposer({
             {sending ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}
           </button>
         </div>
+      </div>
+      <div className="composer-footer">
         <p className="composer-recipient" id={recipientHintId}>
           {new Set(mentions.map((part) => part.agentId)).size > 1
             ? `提及了多位成员，本次由首位「${targetAgent?.name}」回复`
             : targetAgent
               ? `由「${targetAgent.name}」回复`
-              : intent === "auto"
-                ? "总制片统筹 · 发送「开始制作」启动流程"
-                : "仅讨论 · 未指定成员时由总制片回复"}
-          <span>Ctrl / ⌘ + Enter 发送</span>
+              : "由总制片回复"}
         </p>
-      </div>
-      <div className="composer-footer">
-        <span>
-          <span className="status-dot running" />
-          使用 Agent 绑定的模型
-        </span>
         {project.running ? (
           <button onClick={() => void onAction(`${path}/stop`)} disabled={busy}>
             <Pause size={12} />
             暂停制作
           </button>
-        ) : (
+        ) : !project.approval && !done && project.chapters.length > 0 ? (
           <button
             className="run-text-button"
             onClick={() => void onAction(`${path}/run`)}
-            disabled={busy || !!project.approval || done || !project.chapters.length}
+            disabled={busy}
           >
             <Play size={12} />
-            {done
-              ? "本轮已完成"
-              : project.approval
-                ? "等待上方确认"
-                : !project.chapters.length
-                  ? "请先导入本集原文"
-                  : project.nodes.some((n) => n.status === "failed")
-                    ? "重试失败节点"
-                    : "开始 / 继续制作"}
+            {project.nodes.some((n) => n.status === "failed")
+              ? "重试失败节点"
+              : project.nodes.every((n) => n.status === "pending" && !n.startedAt)
+                ? "开始制作"
+                : "继续制作"}
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );

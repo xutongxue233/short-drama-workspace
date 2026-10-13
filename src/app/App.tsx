@@ -18,7 +18,7 @@ import { ModelCenter } from "../features/models";
 import { MaterialLibrary } from "../features/materials";
 import type { AssetSelection, Tab, View } from "../shared/contracts";
 import type { Project, WorkflowNode } from "../types";
-import { Button } from "../ui";
+import { Button, Dialog, DialogBody } from "../ui";
 import { HelpDialog } from "./components/HelpDialog";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { Toast } from "./components/Toast";
@@ -28,8 +28,6 @@ import { useWorkspaceState } from "./useWorkspaceState";
 
 /** Composes application navigation and feature entry points. Feature state stays local. */
 export default function App() {
-  const { state, error, busy, toast, refresh, mutate, action, notify, dismissToast } =
-    useWorkspaceState();
   const [projectId, setProjectId] = useState(() => {
     try {
       return localStorage.getItem("yingxu-project") || "";
@@ -43,7 +41,7 @@ export default function App() {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [asset, setAsset] = useState<AssetSelection | null>(null);
   const [node, setNode] = useState<WorkflowNode | null>(null);
   const [episodesOpen, setEpisodesOpen] = useState(false);
@@ -52,6 +50,9 @@ export default function App() {
     nodeId?: string;
     episodeId?: string;
   } | null>(null);
+  const { state, error, busy, toast, refresh, mutate, action, notify, dismissToast } =
+    useWorkspaceState({ projectId, fullHistory: episodesOpen || activity !== null });
+  const navigationProjects = state?.projectSummaries ?? state?.projects ?? [];
   useEffect(() => {
     try {
       if (projectId) localStorage.setItem("yingxu-project", projectId);
@@ -62,6 +63,9 @@ export default function App() {
   const project = projectId
     ? state?.projects.find((item) => item.id === projectId)
     : state?.projects[0];
+  const navigationProject = navigationProjects.find(
+    (item) => item.id === (projectId || project?.id),
+  );
   const path = project ? `/projects/${project.id}` : "";
   const projectBusy = busy || Boolean(project?.backgroundTask);
   const chooseProject = (id: string) => {
@@ -79,10 +83,12 @@ export default function App() {
     ? project?.nodes.find((item) => item.id === node.id) || node
     : null;
   const assetProject = asset
-    ? state?.projects.find((item) => item.id === asset.projectId)
+    ? navigationProjects.find((item) => item.id === asset.projectId)
     : undefined;
   const activeAsset = asset
-    ? assetProject?.assets.find((item) => item.id === asset.asset.id) || asset.asset
+    ? state?.projects
+        .find((item) => item.id === asset.projectId)
+        ?.assets.find((item) => item.id === asset.asset.id) || asset.asset
     : undefined;
   const activityEpisode = project?.episodeArchive?.find(
     (episode) => episode.id === activity?.episodeId,
@@ -95,10 +101,9 @@ export default function App() {
   return (
     <div className="app-shell">
       <Sidebar
-        projects={state.projects}
-        project={project}
+        projects={navigationProjects}
+        project={navigationProject}
         view={view}
-        error={error}
         onNavigate={setView}
         onHelp={() => setHelpOpen(true)}
         onNewProject={() => setNewProject(true)}
@@ -106,11 +111,9 @@ export default function App() {
       />
       <main className="main-shell">
         <Topbar
-          projects={state.projects}
-          project={project}
+          projects={navigationProjects}
+          project={navigationProject}
           view={view}
-          error={error}
-          onHelp={() => setHelpOpen(true)}
           onNewProject={() => setNewProject(true)}
           onChooseProject={chooseProject}
         />
@@ -129,11 +132,19 @@ export default function App() {
             <ModelCenter state={state} mutate={mutate} notify={notify} />
           </div>
         ) : view === "assets" ? (
-          <AssetLibrary key="assets" projects={state.projects} onOpen={setAsset} />
+          <AssetLibrary
+            key="assets"
+            projects={navigationProjects}
+            initialProjectId={navigationProject?.id}
+            remote={Boolean(state.projectSummaries)}
+            onOpen={setAsset}
+          />
         ) : view === "materials" ? (
           <MaterialLibrary
             key="materials"
-            projects={state.projects}
+            projects={navigationProjects}
+            initialProjectId={navigationProject?.id}
+            remote={Boolean(state.projectSummaries)}
             busy={busy}
             onAction={action}
           />
@@ -154,7 +165,12 @@ export default function App() {
             onEpisodes={() => setEpisodesOpen(true)}
             onActivity={(agentId, nodeId) => setActivity({ agentId, nodeId })}
           />
-        ) : projectId && state.projects.length ? (
+        ) : navigationProject ? (
+          <div className="empty-state" role="status">
+            <p>正在加载项目…</p>
+            {error && <Button onClick={() => void refresh()}>重试</Button>}
+          </div>
+        ) : projectId && navigationProjects.length ? (
           <div className="empty-state">
             <h2>所选项目暂未加载</h2>
             <p>请重新同步工作台，或从项目列表选择要继续的项目。</p>
@@ -241,7 +257,7 @@ export default function App() {
           onActivity={() => setActivity({ nodeId: activeNode.id })}
         />
       )}
-      {episodesOpen && project && (
+      {episodesOpen && project && project.snapshot?.history !== "recent" && (
         <EpisodeArchiveDialog
           project={project}
           onClose={() => setEpisodesOpen(false)}
@@ -262,7 +278,7 @@ export default function App() {
           }}
         />
       )}
-      {activity && activityProject && (
+      {activity && activityProject && project?.snapshot?.history !== "recent" && (
         <AgentActivityDialog
           key={`${activityProject.id}-${activity.episodeId ?? "current"}-${activity.agentId ?? "all"}-${activity.nodeId ?? "all"}`}
           project={activityProject}
@@ -271,6 +287,26 @@ export default function App() {
           initialNodeId={activity.nodeId}
           onClose={() => setActivity(null)}
         />
+      )}
+      {(episodesOpen || activity) && project?.snapshot?.history === "recent" && (
+        <Dialog
+          title="读取项目记录"
+          onClose={() => {
+            setEpisodesOpen(false);
+            setActivity(null);
+          }}
+        >
+          <DialogBody>
+            {error ? (
+              <>
+                <p role="alert">{error}</p>
+                <Button onClick={() => void refresh()}>重试</Button>
+              </>
+            ) : (
+              <p role="status">正在加载记录…</p>
+            )}
+          </DialogBody>
+        </Dialog>
       )}
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
     </div>

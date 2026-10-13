@@ -16,19 +16,36 @@ import { AssetVisual } from "./AssetVisual";
 export function AssetGallery({
   entries,
   onOpen,
+  query,
+  hideEmpty = false,
 }: {
   entries: { asset: Asset; projectId: string; projectName?: string }[];
   onOpen: (entry: { asset: Asset; projectId: string }) => void;
+  query?: {
+    type: string;
+    search: string;
+    onTypeChange: (value: string) => void;
+    onSearchChange: (value: string) => void;
+  };
+  hideEmpty?: boolean;
 }) {
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const filtered = entries.filter(
-    (e) =>
-      (filter === "all" || e.asset.type === filter) &&
-      `${e.asset.name} ${e.asset.description}`
-        .toLowerCase()
-        .includes(search.trim().toLowerCase()),
-  );
+  const [localFilter, setLocalFilter] = useState("all");
+  const [localSearch, setLocalSearch] = useState("");
+  const filter = query?.type ?? localFilter;
+  const search = query?.search ?? localSearch;
+  const setFilter = query?.onTypeChange ?? setLocalFilter;
+  const setSearch = query?.onSearchChange ?? setLocalSearch;
+  const filtered = query
+    ? entries
+    : entries.filter(
+        (e) =>
+          (filter === "all" || e.asset.type === filter) &&
+          `${e.asset.name} ${e.asset.description}`
+            .toLowerCase()
+            .includes(search.trim().toLowerCase()),
+      );
+  const hasFilters =
+    entries.length > 0 || (query && (filter !== "all" || search.trim()));
   return (
     <>
       <div className="asset-controls">
@@ -41,7 +58,7 @@ export function AssetGallery({
                 key={type}
                 onClick={() => setFilter(type)}
               >
-                {type === "all" ? "全部资产" : assetNames[type]}
+                {type === "all" ? "全部" : assetNames[type]}
               </button>
             ),
           )}
@@ -96,7 +113,7 @@ export function AssetGallery({
                   <h3 title={entry.asset.name}>{entry.asset.name}</h3>
                   <span>{assetNames[entry.asset.type]}</span>
                 </div>
-                <p>{entry.asset.description || "点击查看创作内容与设定"}</p>
+                {entry.asset.description && <p>{entry.asset.description}</p>}
                 <footer>
                   {entry.projectName ? (
                     <span title={entry.projectName}>
@@ -108,7 +125,7 @@ export function AssetGallery({
                       {entry.asset.tags
                         ?.filter((tag) => !/^(node|generation|replaces):/.test(tag))
                         .slice(0, 2)
-                        .join(" · ") || "项目资产"}
+                        .join(" · ")}
                     </span>
                   )}
                   <ArrowRight size={14} />
@@ -117,17 +134,17 @@ export function AssetGallery({
             </button>
           ))}
         </div>
-      ) : (
+      ) : hideEmpty ? null : (
         <EmptyState
           icon={<Layers3 size={30} />}
-          title={entries.length ? "没有找到匹配资产" : "资产会随着故事一起生长"}
+          title={hasFilters ? "没有找到匹配资产" : "暂无资产"}
           description={
-            entries.length
+            hasFilters
               ? "试试其他类型或关键词。"
-              : "运行创作流程，角色、剧本和分镜会自动归档在这里。"
+              : "项目生成的角色、剧本和分镜会归档在这里。"
           }
           action={
-            entries.length ? (
+            hasFilters ? (
               <Button
                 onClick={() => {
                   setSearch("");

@@ -55,14 +55,17 @@ export function formatMaterialTime(value?: string) {
     hour12: false,
   }).format(new Date(value));
 }
-export function collectMaterials(projects: Project[]): MaterialEntry[] {
+export function collectMaterials(
+  projects: (Pick<Project, "id" | "name"> &
+    Partial<Pick<Project, "materials" | "nodes">>)[],
+): MaterialEntry[] {
   return projects
     .flatMap((project) =>
       (project.materials || []).map((material) => ({
         material,
         projectId: project.id,
         projectName: project.name,
-        nodeName: project.nodes.find((node) => node.id === material.nodeId)?.name,
+        nodeName: project.nodes?.find((node) => node.id === material.nodeId)?.name,
       })),
     )
     .sort(

@@ -12,23 +12,21 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { View } from "../../shared/contracts";
-import type { Project } from "../../types";
+import type { ProjectSummary } from "../../types";
 import { IconButton } from "../../ui";
 
 export function Sidebar({
   projects,
   project,
   view,
-  error,
   onNavigate,
   onHelp,
   onNewProject,
   onChooseProject,
 }: {
-  projects: Project[];
-  project?: Project;
+  projects: ProjectSummary[];
+  project?: ProjectSummary;
   view: View;
-  error: string;
   onNavigate: (view: View) => void;
   onHelp: () => void;
   onNewProject: () => void;
@@ -55,21 +53,8 @@ export function Sidebar({
           <strong>
             映序<span> STUDIO</span>
           </strong>
-          <small>让创作有序，让故事发生</small>
         </div>
       </a>
-      <button
-        className="workspace-switch"
-        title="了解本地工作台"
-        onClick={() => onHelp()}
-      >
-        <span className="workspace-monogram">映</span>
-        <span>
-          我的创作空间<small>本地工作台</small>
-        </span>
-        <CircleHelp size={16} />
-      </button>
-      <div className="nav-label">工作空间</div>
       <nav className="main-nav" aria-label="主导航">
         <button
           title="项目群聊"
@@ -80,7 +65,6 @@ export function Sidebar({
         >
           <MessageCircle size={18} />
           <span className="nav-text">项目群聊</span>
-          <span className="nav-count">{projects.length}</span>
         </button>
         <button
           title="资产库"
@@ -111,7 +95,6 @@ export function Sidebar({
         >
           <Bot size={18} />
           <span className="nav-text">Agent 中心</span>
-          <span className="tiny-dot" />
         </button>
         <button
           title="模型接入"
@@ -140,14 +123,6 @@ export function Sidebar({
             }}
           >
             <Search size={15} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            title="新建项目"
-            label="新建项目"
-            onClick={() => onNewProject()}
-          >
-            <Plus size={17} />
           </IconButton>
         </div>
       </div>
@@ -212,23 +187,15 @@ export function Sidebar({
         <span className="nav-text">新建创作项目</span>
       </button>
       <div className="sidebar-bottom">
-        <div className="local-status">
-          <span className={`status-dot ${error ? "" : "running"}`} />
-          数据保存在本机
-          <IconButton size="sm" label="使用说明" onClick={() => onHelp()}>
-            <CircleHelp size={15} />
-          </IconButton>
-        </div>
-        <div className="user-profile">
-          <span className="user-avatar">我</span>
-          <div>
-            <strong>独立创作者</strong>
-            <small>每个故事，都值得被看见</small>
-          </div>
-          <IconButton label="工作台设置" onClick={() => onNavigate("models")}>
-            <Settings2 size={17} />
-          </IconButton>
-        </div>
+        <button
+          className="sidebar-help"
+          aria-label="使用说明"
+          title="使用说明"
+          onClick={onHelp}
+        >
+          <CircleHelp size={18} />
+          <span className="nav-text">使用说明</span>
+        </button>
       </div>
     </aside>
   );

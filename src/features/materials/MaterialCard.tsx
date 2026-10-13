@@ -1,11 +1,4 @@
-import {
-  FolderOpen,
-  HardDrive,
-  Cloud,
-  CircleAlert,
-  LoaderCircle,
-  ScanEye,
-} from "lucide-react";
+import { HardDrive, Cloud, CircleAlert, LoaderCircle, ScanEye } from "lucide-react";
 import { Badge, Button } from "../../ui";
 import type { Material } from "../../types";
 import { MaterialActions } from "./MaterialActions";
@@ -77,18 +70,18 @@ export function MaterialCard({
           <h3 title={material.name}>{material.name}</h3>
           <MaterialStatus status={material.status} />
         </div>
-        <p className="material-project" title={entry.projectName}>
-          <FolderOpen size={12} />
-          <span>{entry.projectName}</span>
-        </p>
-        <p className="material-model" title={material.model}>
-          {material.model || "历史素材 · 模型未记录"}
-        </p>
+        {material.model && (
+          <p className="material-model" title={material.model}>
+            {material.model}
+          </p>
+        )}
         <div className="material-facts">
           <time dateTime={material.createdAt}>
             {formatMaterialTime(material.createdAt)}
           </time>
-          <span>{formatMaterialBytes(material.bytes)}</span>
+          {material.bytes !== undefined && (
+            <span>{formatMaterialBytes(material.bytes)}</span>
+          )}
         </div>
         {(material.status === "failed" ||
           (material.status === "local" && material.error)) && (

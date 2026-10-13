@@ -65,7 +65,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 .settings-eyebrow {
   font-size: 10px;
@@ -75,9 +75,9 @@
   margin-bottom: 9px;
 }
 .settings-page-heading h1 {
-  font-size: 27px;
+  font-size: 23px;
   line-height: 1.35;
-  margin: 0 0 9px;
+  margin: 0;
   font-weight: 650;
   letter-spacing: -0.6px;
 }
@@ -86,6 +86,25 @@
   font-size: 13px;
   color: #6f6b7a;
   line-height: 1.8;
+}
+.settings-presets-disclosure {
+  margin-top: 20px;
+  border-top: 1px solid var(--ui-border);
+  padding-top: 8px;
+}
+.settings-presets-disclosure > summary {
+  padding: 12px 0;
+  color: var(--ui-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.settings-presets-disclosure > summary:hover {
+  color: var(--ui-accent);
+}
+.settings-presets-disclosure > summary:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+  border-radius: var(--ui-radius-sm);
 }
 .settings-count {
   display: flex;

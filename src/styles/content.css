@@ -1,5 +1,5 @@
 .tab-content {
-  padding: 28px;
+  padding: 24px;
   overflow: auto;
   min-height: 100%;
   background: #fcfafd;
@@ -9,14 +9,14 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 15px 20px;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
   min-width: 0;
 }
 .section-heading h2 {
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1.5;
-  color: #61466e;
+  color: var(--ink);
   overflow-wrap: anywhere;
 }
 .section-heading p {

@@ -74,7 +74,6 @@ export function ProjectWorkspace({
               busy={busy}
               onAction={onAction}
               onSource={onSource}
-              onInvite={onInvite}
               onAssets={() => onTabChange("assets")}
               onNode={onNode}
             />
@@ -94,8 +93,7 @@ export function ProjectWorkspace({
             <div className="tab-content">
               <div className="section-heading">
                 <div>
-                  <h2>故事的视觉档案</h2>
-                  <p>确认并锁定资产，后续节点将沿用已确认的角色设定。</p>
+                  <h2>项目资产</h2>
                 </div>
                 <Badge>{project.assets.length} 份资产</Badge>
               </div>
@@ -113,6 +111,7 @@ export function ProjectWorkspace({
               key={project.id}
               projects={[project]}
               projectId={project.id}
+              remote={Boolean(project.snapshot)}
               busy={busy}
               onAction={onAction}
             />

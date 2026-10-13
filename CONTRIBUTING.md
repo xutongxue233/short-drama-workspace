@@ -53,8 +53,12 @@ npm run dev
 
 `data/`、`.env*`、构建产物、测试截图不进入版本控制，`.env.example` 保留。备份先停服务，再复制完整 `data` 目录。不要用生产数据库跑测试，也不要删数据库来绕过兼容性问题。
 
-当前数据库保存完整 JSON 检查点，尚无版本化数据迁移体系。修改持久化结构时，先设计旧数据迁移和恢复测试，再接入 `store.mjs`；单纯修改 `seed.mjs` 只影响新数据库或新项目，不会自动升级既有记录。
+当前 SQLite schema 为 v1，版本记录位于 `PRAGMA user_version` 和 `schema_migrations`。`server/storage/schema.mjs` 定义实体表与索引，`codec.mjs` 保留字段和集合顺序，`persistence.mjs` 在事务中执行迁移及实体差异保存，`queries.mjs` 提供按项目的 SQL 分页读取。运行时仍整体加载工作区，`save()` 仍扫描全部实体后只写差异；不要将接口分页描述为服务端已实现惰性加载。
+
+修改持久化结构时，先设计受支持旧版本到新版本的迁移与失败回滚测试，再调整版本号及加载流程。不得直接删除迁移快照、覆盖 `workspace_legacy_v0`，或把只读兼容视图 `workspace` 恢复成可写表；该视图用于拒绝旧版写入，不是当前状态的读取入口。schema v1 迁移保留 `normalized-project-storage-v1` 原始快照，结构变更和内容迁移在同一事务中提交。现有版本之外的数据库会拒绝打开，不应通过手工修改版本标记绕过检查。单纯修改 `seed.mjs` 只影响新数据库或新项目，不会自动升级既有记录。
+
+新增查询须在 SQLite 中先限制 `project_id`，再筛选、排序和分页；生产代码不能退回整份工作区的数组查询。`GET /api/state` 无参数时仍兼容完整快照；精简快照的 `projects` 只含所选项目，跨项目导航和数量应读取 `projectSummaries`，不要把它当作完整 `Project`。同步维护 `src/types.ts`、参数校验与文档。存储回归入口为 `server/storage.test.mjs`，读取接口回归为 `server/read-api.test.mjs`；应覆盖旧记录保留、重复启动、失败重试、项目隔离、追加消息时的游标稳定性及密钥脱敏。
 
 前端的 `App.tsx`、`SettingsViews.tsx`、`providerPresets.ts` 与后端 `providers.mjs` 等旧入口保留兼容导出。新代码使用业务模块的公开入口，不往兼容文件添加实现。
 
-CI 文件已配置，实际远端结果以 GitHub Actions 运行记录为准。本地 Git 仓库已建立，尚未配置远端；提交前仍须在本机执行完整检查。
+CI 文件已配置，实际远端结果以 GitHub Actions 运行记录为准。远程仓库为 [xutongxue233/short-drama-workspace](https://github.com/xutongxue233/short-drama-workspace)，默认分支为 `main`；提交前仍须在本机执行完整检查。

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, CircleHelp, Search, Settings2 } from "lucide-react";
+import { Search, Settings2 } from "lucide-react";
 import { type Agent } from "../../types";
 import { Button } from "../../ui";
 import { type SettingsProps } from "../../components/settings/types";
@@ -37,37 +37,11 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
   return (
     <div className="settings-page">
       <div className="settings-page-heading">
-        <div>
-          <div className="settings-eyebrow">YOUR CREATIVE CREW</div>
-          <h1>Agent 中心</h1>
-          <p>让专业的事，交给专业的创作伙伴。</p>
-        </div>
+        <h1>Agent 中心</h1>
         <span className="settings-count">
           <span />
-          {enabledCount} 位成员已启用
+          {enabledCount} 位已启用
         </span>
-      </div>
-      <div className="settings-crew-note">
-        <div className="settings-note-icon">
-          <Bot size={22} />
-        </div>
-        <div>
-          <strong>一支制作组，协作完成每一部短剧</strong>
-          <p>
-            主控负责组织工作，专业 Agent
-            接力创作。成员的职责与模型配置在所有项目间共享。
-          </p>
-        </div>
-        <div className="settings-crew-mini" aria-hidden="true">
-          {state.agents.slice(0, 4).map((agent, i) => (
-            <span
-              key={agent.id}
-              style={{ background: agent.color || "#6e56cf", zIndex: 4 - i }}
-            >
-              {agent.name.slice(0, 1)}
-            </span>
-          ))}
-        </div>
       </div>
       <div className="settings-toolbar">
         <SettingsSearch
@@ -86,7 +60,7 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
           {showEnabled ? "仅看已启用" : "全部成员"}
         </button>
         <span className="settings-result-count" role="status">
-          {filtered.length} 位创作伙伴
+          {filtered.length} 位成员
         </span>
       </div>
       <div className="settings-agent-grid">
@@ -96,8 +70,9 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
             agent={agent}
             provider={state.providers.find((item) => item.id === agent.providerId)}
             projectCount={
-              state.projects.filter((project) => project.members.includes(agent.id))
-                .length
+              (state.projectSummaries ?? state.projects).filter((project) =>
+                project.members.includes(agent.id),
+              ).length
             }
             busy={busy !== null}
             onToggle={() => {
@@ -125,12 +100,6 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
           </Button>
         </div>
       )}
-      <div className="settings-bottom-note">
-        <CircleHelp size={15} />
-        <span>
-          停用成员后，主控将无法邀请该成员执行新的创作任务。已有创作记录会保留。
-        </span>
-      </div>
       {editing && (
         <AgentEditor
           agent={editing}

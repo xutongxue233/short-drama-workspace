@@ -12,7 +12,10 @@ flowchart LR
   API --> Routes[HTTP 路由 routes]
   Routes --> Services[聊天 service / 工作流协调器]
   Services --> Providers[模型协议适配器 providers]
-  Services --> Store[SQLite 检查点 store]
+  Services --> Store[运行时状态 store]
+  Store --> Storage[SQLite 实体表 storage]
+  Routes --> Queries[按项目分页查询]
+  Queries --> Storage
 ```
 
 ## 前端边界
@@ -35,6 +38,8 @@ flowchart LR
 
 展示组件通过属性获得数据和动作，不自行复制整份工作区状态。表单、搜索、弹窗和输入器草稿留在各自组件；服务端快照由应用 hook 管理。旧快照不能覆盖新快照，卸载会取消待完成的轮询请求。
 
+`useWorkspaceState` 轮询所选项目的精简快照，`projectSummaries` 供侧栏、项目切换和素材库选择器使用；摘要不等同于完整项目。切换项目或历史范围会取消旧请求，并通过修订号阻止过期响应覆盖当前状态。群聊以 `messagePage.startIndex` 将分页消息映射到项目原始消息序号，避免对本集消息再次应用整项目偏移；加载更早记录时保留已读位置。剧集档案与 Agent 日志打开后请求 `history=full`，完整响应到达前显示加载状态。
+
 依赖从 `app` 指向 `features`，再指向 `components / shared / ui`。模块内部用直接相对导入，跨模块使用公开入口。`workspace` 可以组合其他项目功能；被组合的模块不能反向依赖它。基础 UI 不知道项目、模型、Agent 或 API。
 
 `src/styles.css` 是工作台样式的有序入口，业务样式已拆到各模块，全局响应式规则位于 `src/styles/responsive`。Agent 与模型中心由模块入口加载样式；UI 设计变量和控件样式最后引入。拆分保留既有规则和级联次序。
@@ -44,6 +49,52 @@ flowchart LR
 `index.mjs` 只启动监听器并处理关停。`app.mjs` 创建 Express 应用并注入配置、存储、工作流和聊天服务；导入模块不会自动监听端口或创建数据库。测试可注入隔离存储，并使用仅测试目录中的本地模型服务，不需要启动真实项目服务或调用付费模型。
 
 `routes/` 解析 HTTP 输入、调用业务逻辑并返回响应；`http/` 统一处理输入校验、错误格式和本地访问限制。模型配置路由在 `routes/providers.mjs`，不是适配器的一部分。
+
+## SQLite 存储与升级
+
+`store.mjs` 持有可变的工作区对象，管理数据库独占权、连接和启动后的中断恢复。`storage/schema.mjs` 定义 schema v1，`codec.mjs` 在实体行与原有对象结构之间转换，`persistence.mjs` 负责迁移和事务保存，`queries.mjs` 负责 SQL 筛选、排序、分页和数量统计。数据库启用 WAL、外键和写入等待；项目子记录以 `project_id` 外键关联项目。
+
+| 表                                                        | 内容                                             |
+| --------------------------------------------------------- | ------------------------------------------------ |
+| `workspace_metadata`                                      | 工作区额外字段与根集合存在标记                   |
+| `projects`                                                | 项目基本信息、记忆、审批等字段与集合存在标记     |
+| `agents`、`providers`                                     | Agent 与模型服务配置；密钥只保留在服务端         |
+| `project_messages`、`project_assets`、`project_materials` | 消息、创作资产、媒体索引，按项目独立保存         |
+| `project_chapters`、`project_nodes`                       | 当前集原文与制作节点                             |
+| `project_episodes`                                        | 当前集边界元信息，以及包含历史产物的只读归档快照 |
+| `schema_migrations`、`migration_backups`                  | 已应用的 schema 版本与迁移前原始快照             |
+
+拆表粒度是实体，实体详情仍为 JSON `value`，没有把所有业务字段展开为列。实体行保存原 ID、数组位置和内部唯一键；编解码保留未知字段、重复实体 ID，以及缺省集合和空集合的区别。项目子表具备 `(project_id, position)` 与 `(project_id, id)` 索引，素材另有项目内创建时间与 ID 的排序索引。媒体二进制仍位于数据目录的 `media` 中，数据库只保存索引和引用。
+
+首次打开 v0 数据库时，读取旧 `workspace` 单行 JSON，先保留原始字符串，再应用项目范围与剧集内容迁移。建表、备份、新实体数据、兼容视图和版本记录在一个 `BEGIN IMMEDIATE` 事务中提交，失败整体回滚。`migration_backups` 中的 `normalized-project-storage-v1` 保存存储迁移前的原始工作区；其他内容迁移也保留各自的首次快照，均不通过状态或导出接口暴露。
+
+已有旧表改名为 `workspace_legacy_v0`，`workspace` 变为其只读 VIEW；全新数据库则创建空的同名只读 VIEW。视图用于阻止旧版应用写入，返回的旧内容不是当前状态，也不会随着新版保存更新。`PRAGMA user_version = 1` 与 `schema_migrations` 共同标记已完成升级，重复启动不会重做迁移；不支持的版本或不完整的迁移标记会拒绝打开。恢复或回退应使用停服后的完整数据目录备份，不应只修改版本标记或向旧表写入。
+
+启动仍读取所有实体并还原完整内存对象。业务服务沿用同步修改后调用 `save()` 的契约；每次保存扫描并序列化所有实体，与上次成功提交的行比较，只对变化行执行 INSERT/UPDATE/DELETE，多个表的变化在同一事务中提交。失败不更新比较基线，后续重试可以重新保存。这减少 SQLite 写入量，但没有消除全量内存占用和实体比较成本；当前不是惰性项目存储，也不支持多个应用实例同时写入。
+
+## 项目快照与分页接口
+
+只读接口集中在 `routes/queries.mjs`，`services/workspace-snapshot.mjs` 组合公开项目、运行时任务状态和导航摘要。生产存储的消息、素材、资产和数量查询直接使用 SQLite；仅测试注入的简化存储允许数组后备实现。`chatPending`、`backgroundTask` 与 `workflowIssues` 由运行时投影，模型服务沿用 `publicProvider` 脱敏，接口不返回 API Key。
+
+| GET 接口                                                                     | 返回范围                                                                                                                                            |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/state`                                                                 | 兼容旧客户端的完整工作区，包含所有项目、消息、素材和剧集归档                                                                                        |
+| `/api/state?compact=1&projectId=<id>`                                        | `projects` 只含所选项目，`projectSummaries` 包含全部项目的导航元信息与计数；省略 `projectId` 时选择首个项目，明确传入不存在的 ID 时 `projects` 为空 |
+| `/api/state?compact=1&projectId=<id>&history=full`                           | 所选项目恢复完整消息和剧集归档，供工作记录与档案弹窗读取；项目顶层 `materials` 仍为空数组                                                           |
+| `/api/projects/:id`                                                          | 一个完整公开项目及计数、运行时任务状态                                                                                                              |
+| `/api/projects/:id/messages?limit=50&before=<index>`                         | 本集消息，按原始序号向前分页                                                                                                                        |
+| `/api/projects/:id/materials?limit=24&offset=0&type=all&status=all&q=<text>` | 一个项目内筛选后的素材页                                                                                                                            |
+| `/api/projects/:id/assets?limit=24&offset=0&type=all&q=<text>`               | 一个项目内筛选后的资产页                                                                                                                            |
+
+默认精简项目仍包含原文、节点、资产、记忆和当前集边界；`materials` 和 `episodeArchive` 为空数组，`messages` 只含本集最后 50 条。`snapshot.history` 区分 `recent` 与 `full`；`messagePage` 给出本集消息总量、首条返回消息的绝对 `startIndex` 和下一页的 `nextBefore`。空数组表示此快照未加载该集合，不表示项目没有历史或素材；应使用 `counts`。项目和摘要的 `counts` 包含 `assets`、`materials`、`savedMaterials`、`episodes`、`messages`，其中 `episodes` 包含当前集与归档集，`messages` 是整个项目的消息总数。摘要中的 `currentEpisode` 仅提供 ID、集号、标题与创建时间。
+
+消息页返回 `{items, total, nextBefore, startIndex, episodeId}`，`items` 按消息原始序号升序排列。`before` 是不包含自身的整项目绝对序号，省略时取本集最新页；查询下界取运行时 `currentEpisode.startMessageIndex`，不会跨到上集。`total` 始终是本集消息数，`nextBefore` 无更早消息时为 `null`。使用上一页的 `nextBefore` 继续读取，新增尾部消息不会使游标偏移。
+
+素材和资产均先按 `project_id` 限定，再筛选和分页，返回 `{items, total, offset, limit, hasMore}`。素材额外返回项目全部素材数 `projectTotal` 和本地保存数 `savedCount`，不受当前筛选影响；结果按 `createdAt` 降序、ID 降序排列，资产保持项目内数组顺序。素材 `type` 为 `all/image/video/audio`，`status` 为 `all/local/remote/failed/downloading`；资产 `type` 为 `all/character/scene/storyboard/script/video/audio`。`q` 最多 200 字符，去除首尾空白后做不区分大小写的字面子串查询：素材查名称、模型和提示词，资产查名称、说明和标签。素材可附带由节点信息补充的 `nodeName`。
+
+分页 `limit` 为 1–100，消息默认 50、素材和资产默认 24；`before` 与 `offset` 必须是非负安全整数。无效枚举、重复参数、不支持的查询参数以及越界分页值返回 400；项目详情和分页接口找不到项目时返回 404。素材和资产使用 offset 分页，列表增删可能改变后续位置，客户端刷新时须处理页间重复和缺口；不能将其视为消息游标那样的追加稳定分页。
+
+## 业务服务
 
 `workflow.mjs` 保留顺序制作、审批、返修、暂停和失效控制；`workflow/memory.mjs` 负责上下文与摘要，`assets.mjs` 负责产物和版本，`templates.mjs` 维护节点任务及审批定义。
 
@@ -61,7 +112,7 @@ flowchart LR
 
 显式调用 `DELETE /api/projects/:id/materials/:materialId` 可删除错误素材及其关联未锁定资产、本地文件，并使对应制作节点及下游重新等待制作。制作、聊天或下载任务进行中，以及锁定资产或其他项目仍引用素材时拒绝删除；不清除前序剧本与审批成果。普通返修继续保留历史素材，只有显式删除才移除原文件。
 
-`src/features/materials` 提供项目内和全局素材浏览，使用服务端保存状态，不把远程链接当作已下载文件。项目 JSON 导出仅携带素材索引；完整备份需包含整个数据目录。`providers/:id/image-test` 是显式付费生成测试，与只读连接测试分离，结果只入素材库，不改变当前制作和审批状态。
+`src/features/materials` 提供项目内素材浏览与可切换项目的素材库入口，均按项目分页，使用服务端保存状态，不把远程链接当作已下载文件。项目 JSON 导出仅携带素材索引；完整备份需包含整个数据目录。`providers/:id/image-test` 是显式付费生成测试，与只读连接测试分离，结果只入素材库，不改变当前制作和审批状态。
 
 `providers/generate.mjs` 统一选择协议适配器；`adapters/` 分开 OpenAI 兼容、Anthropic、火山方舟、MiniMax 和 Webhook；`transport.mjs` 负责 HTTP、超时和取消信号，`media.mjs` 负责参考媒体校验。异步轮询由方舟、MiniMax 和 Webhook 适配器按各自协议实现。适配器接受任务和取消信号，返回标准结果，不导入应用、路由或工作流协调器。
 
@@ -83,9 +134,9 @@ flowchart LR
 
 前端严格 TypeScript；后端仍为分层的 ESM JavaScript，用 ESLint 与 Node 集成测试约束。当前没有生成式 OpenAPI 或运行时共享 schema；改 API 时须同步 `src/types.ts`、服务端校验和测试，不能只改 TypeScript 接口。
 
-持久化继续采用 JSON 检查点，新增可选字段需要兼容旧记录。未来引入数据库迁移、队列或远程部署时，需要单独设计相应生命周期与兼容策略。
+持久化采用版本化 SQLite 实体表，实体 JSON 中的新增可选字段仍需兼容旧记录。结构变化须设计明确的版本迁移；未来引入惰性加载、队列或远程部署时，需要单独设计相应生命周期与兼容策略。`server/storage.test.mjs` 覆盖迁移、字段保留、差异保存和事务回滚，`server/read-api.test.mjs` 覆盖公开快照、项目隔离、分页和输入校验。
 
-项目升级由 `project-migration.mjs` 执行：现有真实单集审批与资产保持有效，旧模板与多集方案回到待核对状态。`store.mjs` 在同一 SQLite 事务中保存迁移前快照与升级后的状态，重复启动不反复迁移。首次启动项目列表为空，预设只保留 Agent 和未启用的模型配置。
+项目内容升级由 `project-migration.mjs` 执行：现有真实单集审批与资产保持有效，旧模板与多集方案回到待核对状态。`store.mjs` 将内容迁移交给存储层，与迁移前快照和升级后的实体数据一起事务保存，重复启动不反复迁移。首次启动项目列表为空，预设只保留 Agent 和未启用的模型配置。
 
 `episode-migration.mjs` 幂等补齐 `currentEpisode` 与 `episodeArchive`，不改既有资产、节点、审批与角色检查点。`POST /api/projects/:id/episodes` 要求本集全部节点验收且无正在进行的工作，保存只读快照后开启下一集；当前节点仍位于 `Project.nodes`，旧产物封存在归档中。锁定角色与场景跨集复用，其他历集资产标记历史版本。归档引用的媒体文件受删除保护。
 

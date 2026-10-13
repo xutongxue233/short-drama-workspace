@@ -119,13 +119,6 @@
   margin-top: 16px;
   flex-wrap: wrap;
 }
-.approval-bottom > span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  color: var(--muted);
-}
 .approval-bottom > div {
   display: flex;
   gap: 8px;

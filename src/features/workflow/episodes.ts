@@ -18,6 +18,8 @@ export function archivedEpisodeProject(
 ): Project {
   return {
     ...project,
+    messagePage: undefined,
+    counts: undefined,
     currentEpisode: {
       id: episode.id,
       number: episode.number,

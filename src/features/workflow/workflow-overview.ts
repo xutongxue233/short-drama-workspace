@@ -61,7 +61,9 @@ export function agentWorkState(project: Project, agent: Agent) {
 }
 
 export function projectTotals(project: Project) {
-  const archived = project.episodeArchive?.length ?? 0;
+  const archived = project.counts
+    ? Math.max(0, project.counts.episodes - 1)
+    : (project.episodeArchive?.length ?? 0);
   const characters = project.assets.filter(
     (asset) =>
       asset.type === "character" &&
@@ -69,8 +71,8 @@ export function projectTotals(project: Project) {
       asset.locked &&
       !asset.tags.some((tag) => ["历史版本", "待更新", "待重新生成"].includes(tag)),
   ).length;
-  const savedMaterials = (project.materials ?? []).filter(
-    (material) => material.status === "local",
-  ).length;
+  const savedMaterials =
+    project.counts?.savedMaterials ??
+    (project.materials ?? []).filter((material) => material.status === "local").length;
   return { created: archived + 1, archived, characters, savedMaterials };
 }

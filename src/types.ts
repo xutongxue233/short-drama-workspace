@@ -201,6 +201,9 @@ export interface EpisodeArchive {
   materials: Material[];
 }
 export interface Project {
+  counts?: ProjectCounts;
+  snapshot?: { history: "recent" | "full" };
+  messagePage?: Omit<MessagePage, "items" | "episodeId">;
   id: string;
   name: string;
   description: string;
@@ -232,8 +235,41 @@ export interface Project {
 }
 export interface WorkspaceState {
   projects: Project[];
+  projectSummaries?: ProjectSummary[];
   agents: Agent[];
   providers: Provider[];
+}
+export interface ProjectCounts {
+  assets: number;
+  materials: number;
+  savedMaterials: number;
+  episodes: number;
+  messages: number;
+}
+export type ProjectSummary = Pick<
+  Project,
+  | "id"
+  | "name"
+  | "description"
+  | "genre"
+  | "style"
+  | "createdAt"
+  | "updatedAt"
+  | "members"
+  | "running"
+  | "approval"
+  | "backgroundTask"
+  | "chatPending"
+> & {
+  counts?: ProjectCounts;
+  currentEpisode?: Pick<CurrentEpisode, "id" | "number" | "title" | "createdAt">;
+};
+export interface MessagePage {
+  items: Message[];
+  total: number;
+  nextBefore: number | null;
+  startIndex: number;
+  episodeId: string | null;
 }
 export type Mutate = (
   path: string,

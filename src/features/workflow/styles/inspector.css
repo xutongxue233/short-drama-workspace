@@ -55,11 +55,6 @@
   font-size: 10px;
   font-weight: 400;
 }
-.project-overview-note {
-  color: var(--secondary);
-  font-size: 10px;
-  line-height: 1.7;
-}
 .episode-overview {
   margin-top: 16px;
   border-top: 1px solid #ede7f3;
@@ -352,19 +347,6 @@ button.member:hover {
 .member > svg {
   color: var(--secondary);
 }
-.invite-inline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  color: var(--muted);
-  border: 1px dashed #e6dcee;
-  padding: 9px;
-  border-radius: 6px;
-  margin-top: 5px;
-  font-size: 11px;
-  min-height: 35px;
-}
 .memory-mini {
   margin-top: 20px;
   background: #f7f2fc;
@@ -394,13 +376,4 @@ button.member:hover {
   font-size: 10px;
   color: var(--muted);
   line-height: 1.5;
-}
-.inspector-footnote {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  color: var(--secondary);
-  margin-top: 12px;
-  font-size: 9px;
 }

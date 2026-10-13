@@ -1,18 +1,9 @@
-import {
-  AlertCircle,
-  ArrowRight,
-  BookOpen,
-  CheckCheck,
-  Clapperboard,
-  FileText,
-  Film,
-  Users,
-} from "lucide-react";
+import { AlertCircle, ArrowRight, BookOpen, CheckCheck, FileText } from "lucide-react";
 import { Avatar } from "../../../components/AgentAvatar";
 import { MemberAvatar, MemberKindBadge } from "../../../components/MemberIdentity";
 import { TextContent } from "../../../components/TextContent";
 import type { Action } from "../../../shared/contracts";
-import { memberById, projectMembers } from "../../../shared/project-members";
+import { memberById } from "../../../shared/project-members";
 import type { Agent, Project, WorkflowNode } from "../../../types";
 import { Button } from "../../../ui";
 import { ApprovalCard } from "./ApprovalCard";
@@ -25,6 +16,7 @@ export function ChatHistory({
   onAction,
   onNode,
   onAssets,
+  onSource,
   historyRef,
   pendingAgentId,
 }: {
@@ -34,6 +26,7 @@ export function ChatHistory({
   onAction: Action;
   onNode: (node: WorkflowNode) => void;
   onAssets: () => void;
+  onSource: () => void;
   historyRef: React.Ref<HTMLDivElement>;
   pendingAgentId?: string | null;
 }) {
@@ -41,138 +34,122 @@ export function ChatHistory({
     project.nodes.length > 0 &&
     project.nodes.every((node) => node.status === "completed");
   const mentions = [...agents, { id: "user", name: "你" }];
+  const messages = project.messagePage
+    ? project.messages
+    : project.messages.slice(project.currentEpisode?.startMessageIndex ?? 0);
   return (
     <div className="chat-history" ref={historyRef}>
-      <div className="chat-date">
-        <span />
-        {new Date(
-          project.currentEpisode?.createdAt || project.createdAt,
-        ).toLocaleDateString("zh-CN", {
-          month: "long",
-          day: "numeric",
-        })}{" "}
-        · 第 {project.currentEpisode?.number ?? 1} 集创作记录
-        <span />
-      </div>
-      <div className="project-intro">
-        <span className="intro-icon">
-          <Clapperboard size={25} />
-        </span>
-        <div>
-          <h2>
-            {project.name}
-            <span>创作群</span>
-          </h2>
-          <p>导入本集原文，和团队一起创作当前一集。</p>
-          {!!project.episodeArchive?.length && (
-            <p>历集原文、产物与对话可在「剧集档案」查看。</p>
-          )}
+      {messages.length > 0 && (
+        <div className="chat-date">
+          <span />
+          {new Date(
+            project.currentEpisode?.createdAt || project.createdAt,
+          ).toLocaleDateString("zh-CN", {
+            month: "long",
+            day: "numeric",
+          })}{" "}
+          · 第 {project.currentEpisode?.number ?? 1} 集创作记录
+          <span />
         </div>
-        <div className="intro-tags">
-          <span>
-            <BookOpen size={12} />
-            {project.chapters.length} 份本集原文
-          </span>
-          <span>
-            <Film size={12} />
-            {project.style || "风格待确认"}
-          </span>
-          <span>
-            <Users size={12} />
-            {projectMembers(project, agents).length} 位成员
-          </span>
-          {project.productionBrief && (
-            <span>
-              <Clapperboard size={12} />第 {project.currentEpisode?.number ?? 1} 集 ·{" "}
-              {project.productionBrief.durationSeconds} 秒 ·{" "}
-              {project.productionBrief.aspectRatio}
-            </span>
-          )}
-        </div>
-      </div>
-      {project.messages
-        .slice(project.currentEpisode?.startMessageIndex ?? 0)
-        .map((message) => {
-          const isUser = message.agentId === "user";
-          // Earlier versions saved chat failures as quiet system notices.
-          const legacyFailure =
-            message.type === "system" &&
-            message.agentId === "system" &&
-            /^反馈已保存，但「(.+?)」本次回复未完成：/.exec(message.content);
-          const isFailure = message.type === "error" || Boolean(legacyFailure);
-          const agent = agents.find((a) =>
-            legacyFailure ? a.name === legacyFailure[1] : a.id === message.agentId,
-          );
-          const member = memberById(agent?.id || message.agentId, agents);
-          if (message.type === "system" && !isFailure)
-            return (
-              <div className="system-message" key={message.id}>
-                <span />
-                <p>{message.content}</p>
-                <span />
-              </div>
-            );
+      )}
+      {!messages.length &&
+        !project.chapters.length &&
+        !project.approval &&
+        !pendingAgentId &&
+        !project.running && (
+          <div className="chat-empty">
+            <h2>开始本集创作</h2>
+            <p>导入原文开始制作，也可以先在下方讨论。</p>
+            <Button variant="secondary" onClick={onSource}>
+              <BookOpen size={15} />
+              导入本集原文
+            </Button>
+          </div>
+        )}
+      {messages.map((message) => {
+        const isUser = message.agentId === "user";
+        // Earlier versions saved chat failures as quiet system notices.
+        const legacyFailure =
+          message.type === "system" &&
+          message.agentId === "system" &&
+          /^反馈已保存，但「(.+?)」本次回复未完成：/.exec(message.content);
+        const isFailure = message.type === "error" || Boolean(legacyFailure);
+        const agent = agents.find((a) =>
+          legacyFailure ? a.name === legacyFailure[1] : a.id === message.agentId,
+        );
+        const member = memberById(agent?.id || message.agentId, agents);
+        if (message.type === "system" && !isFailure)
           return (
-            <article
-              className={`message ${isUser ? "from-user" : ""}`}
+            <div
+              className="system-message"
               key={message.id}
+              data-message-id={message.id}
             >
-              {member ? <MemberAvatar member={member} /> : <Avatar agent={agent} />}
-              <div className="message-main">
-                <header>
-                  <strong>{member?.name || "历史成员"}</strong>
-                  {member && (
-                    <>
-                      <MemberKindBadge kind={member.kind} />
-                      <span className="message-member-role">{member.role}</span>
-                    </>
-                  )}
-                  <time
-                    dateTime={message.createdAt}
-                    title={new Date(message.createdAt).toLocaleString("zh-CN")}
-                  >
-                    {new Date(message.createdAt).toLocaleTimeString("zh-CN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </time>
-                </header>
-                <div
-                  className={`message-bubble ${message.type === "result" ? "result" : ""} ${isFailure ? "reply-error" : ""}`}
-                >
-                  {isFailure && (
-                    <div className="reply-error-title">
-                      <AlertCircle size={16} />
-                      <strong>
-                        {message.nodeId ? "节点执行未完成" : "回复未完成"}
-                      </strong>
-                    </div>
-                  )}
-                  <TextContent text={message.content} mentions={mentions} />
-                  {legacyFailure && (
-                    <p className="reply-error-help">
-                      请在模型接入中检查服务状态，并在 Agent
-                      中心核对该成员的模型绑定后重新发送。
-                    </p>
-                  )}
-                  {message.type === "result" && message.nodeId && (
-                    <button
-                      className="message-result-link"
-                      onClick={() => {
-                        const n = project.nodes.find((n) => n.id === message.nodeId);
-                        if (n) onNode(n);
-                      }}
-                    >
-                      <FileText size={14} />
-                      查看节点成果
-                      <ArrowRight size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </article>
+              <span />
+              <p>{message.content}</p>
+              <span />
+            </div>
           );
-        })}
+        return (
+          <article
+            className={`message ${isUser ? "from-user" : ""}`}
+            key={message.id}
+            data-message-id={message.id}
+          >
+            {member ? <MemberAvatar member={member} /> : <Avatar agent={agent} />}
+            <div className="message-main">
+              <header>
+                <strong>{member?.name || "历史成员"}</strong>
+                {member && (
+                  <>
+                    <MemberKindBadge kind={member.kind} />
+                    <span className="message-member-role">{member.role}</span>
+                  </>
+                )}
+                <time
+                  dateTime={message.createdAt}
+                  title={new Date(message.createdAt).toLocaleString("zh-CN")}
+                >
+                  {new Date(message.createdAt).toLocaleTimeString("zh-CN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </time>
+              </header>
+              <div
+                className={`message-bubble ${message.type === "result" ? "result" : ""} ${isFailure ? "reply-error" : ""}`}
+              >
+                {isFailure && (
+                  <div className="reply-error-title">
+                    <AlertCircle size={16} />
+                    <strong>{message.nodeId ? "节点执行未完成" : "回复未完成"}</strong>
+                  </div>
+                )}
+                <TextContent text={message.content} mentions={mentions} />
+                {legacyFailure && (
+                  <p className="reply-error-help">
+                    请在模型接入中检查服务状态，并在 Agent
+                    中心核对该成员的模型绑定后重新发送。
+                  </p>
+                )}
+                {message.type === "result" && message.nodeId && (
+                  <button
+                    className="message-result-link"
+                    onClick={() => {
+                      const n = project.nodes.find((n) => n.id === message.nodeId);
+                      if (n) onNode(n);
+                    }}
+                  >
+                    <FileText size={14} />
+                    查看节点成果
+                    <ArrowRight size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </article>
+        );
+      })}
       {pendingAgentId && (
         <div className="chat-reply-pending" role="status" aria-live="polite">
           <Avatar agent={agents.find((agent) => agent.id === pendingAgentId)} />
@@ -181,7 +158,6 @@ export function ChatHistory({
               {agents.find((agent) => agent.id === pendingAgentId)?.name || "Agent"}
               正在回复…
             </strong>
-            <p>正在读取项目上下文并组织回复，请稍候。</p>
           </div>
           <span className="reply-pulse" aria-hidden="true">
             <i />

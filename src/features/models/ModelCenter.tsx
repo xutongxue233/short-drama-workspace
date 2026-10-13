@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { CircleHelp, Link2, Plus, Settings2, ShieldCheck, Zap } from "lucide-react";
+import { Link2, Plus } from "lucide-react";
 import { Button } from "../../ui";
 import { type SettingsProps } from "../../components/settings/types";
 import { kindLabels, type ProviderKind } from "./modelConfig";
 import { useModelManagement } from "./useModelManagement";
 import { ProviderEditor } from "./ProviderEditor";
-import { ModelCapabilityFilter } from "./ModelCapabilityFilter";
 import { ProviderPresetGallery } from "./ProviderPresetGallery";
 import { ProviderRow } from "./ProviderRow";
 import { DeleteProviderDialog } from "./DeleteProviderDialog";
@@ -40,25 +39,12 @@ export function ModelCenter({ state, mutate, notify }: SettingsProps) {
   return (
     <div className="settings-page">
       <div className="settings-page-heading">
-        <div>
-          <div className="settings-eyebrow">THE MODELS BEHIND THE MAGIC</div>
-          <h1>模型服务</h1>
-          <p>连接你的创作引擎，从文字到画面。</p>
-        </div>
+        <h1>模型服务</h1>
         <Button variant="primary" onClick={() => openEditor(null)}>
           <Plus size={17} />
           添加模型服务
         </Button>
       </div>
-      <ModelCapabilityFilter
-        providers={state.providers}
-        filter={filter}
-        onChange={setFilter}
-      />
-      <ProviderPresetGallery
-        presets={presets}
-        onChoose={(preset) => openEditor(null, preset)}
-      />
       <div className="settings-toolbar settings-model-toolbar">
         <SettingsSearch
           label="搜索模型服务"
@@ -86,7 +72,6 @@ export function ModelCenter({ state, mutate, notify }: SettingsProps) {
               </button>
             ))}
           </div>
-          <span className="settings-result-count">按制作需求自由组合</span>
         </div>
         {providers.length ? (
           <div className="settings-provider-list">
@@ -116,7 +101,7 @@ export function ModelCenter({ state, mutate, notify }: SettingsProps) {
               {query.trim()
                 ? "没有匹配的模型服务"
                 : filter === "all"
-                  ? "为制作组连接第一个模型"
+                  ? "暂无模型服务"
                   : "还没有配置" + kindLabels[filter] + "服务"}
             </h3>
             <p>
@@ -137,29 +122,13 @@ export function ModelCenter({ state, mutate, notify }: SettingsProps) {
           </div>
         )}
       </div>
-      <div className="settings-model-guidance">
-        <div>
-          <CircleHelp size={18} />
-          <h3>为创作团队接入模型</h3>
-        </div>
-        <p>
-          添加并启用模型服务，再到 Agent
-          中心绑定。文字、图片和视频可以分别使用不同服务商，制作流程会调用对应成员的模型。
-        </p>
-        <div className="settings-guidance-footer">
-          <span>
-            <ShieldCheck size={14} />
-            密钥保存在本机
-          </span>
-          <span>
-            <Settings2 size={14} />在 Agent 中心绑定专用模型
-          </span>
-          <span>
-            <Zap size={14} />
-            生成用量由服务商计费
-          </span>
-        </div>
-      </div>
+      <details className="settings-presets-disclosure">
+        <summary>从常用预设添加</summary>
+        <ProviderPresetGallery
+          presets={presets}
+          onChoose={(preset) => openEditor(null, preset)}
+        />
+      </details>
       {editing !== undefined && (
         <ProviderEditor
           provider={editing}
