@@ -1,0 +1,131 @@
+.settings-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 17px;
+  margin-bottom: 28px;
+}
+.settings-capability {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 21px 18px;
+  border: 1px solid #e6e4ec;
+  background: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  min-width: 0;
+  color: #282733;
+  font: inherit;
+}
+.settings-capability:hover,
+.settings-capability.is-selected {
+  border-color: #b9a9e5;
+}
+.settings-capability.is-selected {
+  box-shadow: 0 0 0 2px #7160cf0c;
+}
+.settings-capability-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+.settings-kind-text {
+  background: #f0ecfc;
+  color: #866ad0;
+}
+.settings-kind-image {
+  background: #e9f4ef;
+  color: #348064;
+}
+.settings-kind-video {
+  background: #fcf0e6;
+  color: #a86e38;
+}
+.settings-capability strong {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.settings-capability p {
+  font-size: 11px;
+  color: #6f6b7a;
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+.settings-capability-count {
+  font-size: 24px;
+  line-height: 1;
+  color: #555563;
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.settings-capability-count small {
+  font-size: 10px;
+  color: #7b7389;
+  display: block;
+  margin-top: 7px;
+  font-weight: 400;
+}
+
+.settings-capability > div:nth-child(2) {
+  min-width: 0;
+}
+@container (max-width: 1000px) {
+  .settings-capability {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 18px 16px;
+  }
+  .settings-capability > div:nth-child(2) {
+    flex: 1;
+  }
+  .settings-capability-count {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 22px;
+    padding-left: 52px;
+    margin: 0;
+  }
+  .settings-capability-count small {
+    margin: 0;
+  }
+}
+@container (max-width: 720px) {
+  .settings-capability-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .settings-capability {
+    flex-wrap: nowrap;
+    padding: 16px 18px;
+    gap: 13px;
+  }
+  .settings-capability-count {
+    width: auto;
+    display: block;
+    flex-shrink: 0;
+    padding: 0;
+    margin-left: auto;
+    text-align: right;
+  }
+  .settings-capability-count small {
+    margin-top: 6px;
+  }
+}
+@container (max-width: 430px) {
+  .settings-capability {
+    padding: 15px 14px;
+    gap: 10px;
+  }
+  .settings-capability-icon {
+    width: 36px;
+    height: 36px;
+  }
+}

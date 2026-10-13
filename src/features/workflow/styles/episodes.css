@@ -1,0 +1,204 @@
+.episode-archive-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.episode-library-summary {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.episode-library-summary > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.episode-library-summary strong {
+  font-size: 13px;
+}
+.episode-library-summary p,
+.episode-archive-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin: 5px 0 0;
+}
+.episode-library-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.episode-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.episode-picker > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  padding: 12px;
+  border-radius: 10px;
+  text-align: left;
+  min-width: 0;
+}
+.episode-picker > button:hover {
+  background: var(--surface);
+}
+.episode-picker > button.selected {
+  background: var(--accent-light);
+  border-color: #dcd4f4;
+}
+.episode-picker-number {
+  color: var(--accent);
+  font-size: 19px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.episode-picker > button > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.episode-picker strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.episode-picker small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.episode-detail {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 22px;
+}
+.episode-detail-heading {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: start;
+}
+.episode-detail-heading > div {
+  min-width: 0;
+}
+.episode-detail-heading > div > span {
+  font-size: 10px;
+  color: var(--muted);
+}
+.episode-detail-heading h3 {
+  font-size: 17px;
+  line-height: 1.5;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.episode-detail-meta {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.episode-detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.episode-current-note {
+  padding: 18px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  margin-top: 20px;
+  color: var(--muted);
+  line-height: 1.9;
+  font-size: 12px;
+}
+.episode-current-note > svg {
+  color: var(--accent);
+}
+.episode-current-note p {
+  margin: 8px 0;
+}
+.episode-current-note strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+.episode-snapshot-section {
+  margin-top: 20px;
+}
+.episode-snapshot-section h4 {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.episode-snapshot-section details {
+  border-bottom: 1px solid var(--border);
+}
+.episode-snapshot-section summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 0;
+  font-size: 12px;
+}
+.episode-snapshot-section summary::before {
+  content: "›";
+  color: var(--accent);
+}
+.episode-snapshot-section details[open] > summary::before {
+  transform: rotate(90deg);
+}
+.episode-snapshot-section summary > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.episode-snapshot-section summary > small {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.episode-source-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 320px;
+  overflow-y: auto;
+  line-height: 1.9;
+  padding: 10px;
+  font-size: 12px;
+  background: var(--surface);
+}
+.episode-node-output {
+  padding-bottom: 12px;
+  min-width: 0;
+  overflow: auto;
+}
+.next-episode-form {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+@media (max-width: 600px) {
+  .episode-library-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .episode-picker {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .episode-picker > button {
+    flex: 0 0 175px;
+  }
+  .episode-detail {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+}

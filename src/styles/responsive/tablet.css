@@ -1,0 +1,129 @@
+@media (max-width: 1180px) {
+  .inspector {
+    display: none;
+  }
+  .ui-icon-button.inspector-toggle {
+    display: none;
+  }
+  .project-tab-tools {
+    display: none;
+  }
+  .sidebar {
+    width: 214px;
+    flex-basis: 214px;
+    padding-inline: 12px;
+  }
+  .brand {
+    padding-inline: 4px;
+  }
+  .brand strong {
+    font-size: 21px;
+  }
+  .avatar-stack {
+    display: none;
+  }
+  .project-title h1 {
+    font-size: 21px;
+  }
+}
+@media (max-width: 960px) {
+  .sidebar {
+    width: 68px;
+    flex-basis: 68px;
+    padding: 24px 10px 0;
+  }
+  .brand {
+    padding: 0 5px;
+  }
+  .brand > div {
+    display: none;
+  }
+  .workspace-switch {
+    display: none;
+  }
+  .nav-label {
+    display: none;
+  }
+  .project-section-title {
+    display: none;
+  }
+  .project-list {
+    display: none;
+  }
+  .new-project-button {
+    display: none;
+  }
+  .project-search {
+    display: none;
+  }
+  .local-status {
+    display: none;
+  }
+  .user-profile > div {
+    display: none;
+  }
+  .user-profile > .ui-icon-button {
+    display: none;
+  }
+  .nav-text {
+    display: none;
+  }
+  .main-nav .nav-count {
+    display: none;
+  }
+  .main-nav .tiny-dot {
+    display: none;
+  }
+  .local-pill {
+    display: none;
+  }
+  .top-avatar {
+    display: none;
+  }
+  .brand-mark {
+    width: 37px;
+    height: 37px;
+    flex-basis: 37px;
+  }
+  .main-nav {
+    margin-top: 33px;
+    gap: 12px;
+  }
+  .main-nav > button {
+    width: 48px;
+    height: 44px;
+    padding: 12px;
+    gap: 0;
+    justify-content: center;
+  }
+  .main-nav > button > svg {
+    width: 20px;
+    height: 20px;
+  }
+  .sidebar-bottom {
+    margin-top: auto;
+  }
+  .user-profile {
+    padding: 18px 7px;
+  }
+  .topbar-right {
+    gap: 6px;
+  }
+  .mobile-project-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .mobile-project-controls .ui-select {
+    height: 32px;
+    width: 146px;
+    max-width: 26vw;
+    padding: 5px 20px 5px 8px;
+    border: 1px solid #dfcdec;
+    border-radius: 6px;
+    background: white;
+    font-size: 11px;
+    color: var(--muted);
+    text-overflow: ellipsis;
+  }
+}

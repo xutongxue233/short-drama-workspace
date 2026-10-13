@@ -1,0 +1,480 @@
+@media (max-width: 600px) {
+  .sidebar {
+    width: 54px;
+    flex-basis: 54px;
+    padding: 20px 7px 0;
+  }
+  .brand {
+    padding: 0 1px;
+  }
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    border-radius: 10px;
+  }
+  .main-nav {
+    margin-top: 28px;
+  }
+  .main-nav > button {
+    width: 40px;
+    height: 42px;
+    padding: 10px;
+  }
+  .main-nav > button > svg {
+    width: 19px;
+    height: 19px;
+  }
+  .user-profile {
+    padding-inline: 3px;
+  }
+  .topbar {
+    height: 51px;
+    min-height: 51px;
+    padding-inline: 16px;
+    gap: 8px;
+  }
+  .breadcrumb {
+    font-size: 10px;
+    gap: 5px;
+  }
+  .breadcrumb > span {
+    display: none;
+  }
+  .breadcrumb > svg {
+    display: none;
+  }
+  .topbar-right {
+    gap: 2px;
+  }
+  .topbar-right > .ui-icon-button {
+    display: none;
+  }
+  .mobile-project-controls {
+    gap: 2px;
+  }
+  .mobile-project-controls .ui-select {
+    width: 116px;
+    max-width: 30vw;
+    font-size: 10px;
+    padding-left: 6px;
+  }
+  .project-header {
+    padding: 18px 16px 0;
+  }
+  .project-title-row {
+    flex-wrap: wrap;
+    gap: 11px;
+  }
+  .project-title-icon {
+    display: none;
+  }
+  .project-title {
+    flex: 1 1 100%;
+  }
+  .project-title h1 {
+    font-size: 19px;
+  }
+  .project-title p {
+    font-size: 10px;
+    margin-top: 5px;
+  }
+  .project-title .ui-badge {
+    font-size: 10px;
+  }
+  .project-header-actions {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .avatar-stack {
+    display: flex;
+  }
+  .export-button {
+    min-height: 29px;
+    padding: 5px 9px;
+    font-size: 10px;
+    margin-left: auto;
+  }
+  .avatar-stack .avatar {
+    width: 25px;
+    height: 25px;
+    flex-basis: 25px;
+  }
+  .project-tabs {
+    position: relative;
+    margin-top: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .project-tabs > [role="tablist"] {
+    width: 100%;
+    justify-content: space-between;
+    gap: 9px;
+    order: 2;
+  }
+  .project-tabs > [role="tablist"] > button {
+    font-size: 11px;
+    min-height: 41px;
+    padding-bottom: 11px;
+    gap: 5px;
+  }
+  .project-tabs > [role="tablist"] > button > svg {
+    display: none;
+  }
+  .project-tabs > [role="tablist"] > button > span {
+    font-size: 9px;
+    min-width: 15px;
+    height: 16px;
+  }
+  .project-tab-tools {
+    position: static;
+    order: 1;
+    margin: 0 0 0 auto;
+    gap: 0;
+  }
+  .chat-scroll {
+    padding: 0 16px 16px;
+  }
+  .chat-context-bar {
+    padding: 7px 16px;
+    min-height: 37px;
+  }
+  .chat-context-bar > span {
+    font-size: 0;
+    gap: 6px;
+  }
+  .chat-context-bar i {
+    display: none;
+  }
+  .chat-context-bar strong {
+    font-size: 10px;
+  }
+  .chat-context-bar .text-button {
+    font-size: 10px;
+  }
+  .chat-date {
+    font-size: 10px;
+    margin: 17px 0;
+  }
+  .project-intro {
+    padding: 14px;
+    gap: 9px;
+  }
+  .intro-icon {
+    width: 33px;
+    height: 35px;
+    flex-basis: 33px;
+  }
+  .project-intro h2 {
+    font-size: 13px;
+  }
+  .project-intro p {
+    font-size: 10px;
+  }
+  .intro-tags {
+    margin-left: 0;
+    font-size: 10px;
+    gap: 5px 10px;
+  }
+  .message {
+    gap: 8px;
+    margin: 21px 0;
+  }
+  .message > .avatar {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+    border-radius: 8px;
+  }
+  .message > .avatar svg {
+    width: 16px;
+  }
+  .message-main > header {
+    gap: 5px;
+  }
+  .message-main > header strong {
+    font-size: 11px;
+  }
+  .agent-tag {
+    font-size: 9px;
+    padding-inline: 4px;
+  }
+  .message-bubble {
+    font-size: 12px;
+  }
+  .message-bubble.result {
+    padding: 12px;
+  }
+  .message-main time {
+    font-size: 9px;
+  }
+  .approval-card {
+    padding: 15px;
+    margin-left: 0;
+  }
+  .approval-card h3 {
+    font-size: 14px;
+  }
+  .approval-card > p {
+    font-size: 11px;
+  }
+  .approval-bottom {
+    gap: 9px;
+  }
+  .approval-bottom > span {
+    font-size: 9px;
+    flex-basis: 100%;
+  }
+  .approval-bottom > div {
+    width: 100%;
+    gap: 7px;
+  }
+  .approval-bottom .ui-button {
+    padding-inline: 9px;
+    font-size: 10px;
+  }
+  .style-options {
+    gap: 7px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 14px 0;
+  }
+  .style-options > button {
+    flex-direction: row;
+    min-height: 61px;
+    padding: 14px 6px 10px;
+    gap: 6px;
+  }
+  .style-options strong {
+    font-size: 10px;
+  }
+  .style-icon {
+    width: 25px;
+    height: 26px;
+  }
+  .style-icon svg {
+    width: 16px;
+  }
+  .radio-indicator {
+    width: 11px;
+    height: 11px;
+    top: 5px;
+    right: 5px;
+  }
+  .composer-wrap {
+    padding: 10px 16px max(9px, env(safe-area-inset-bottom));
+  }
+  .composer {
+    padding: 11px 10px 9px;
+  }
+  .composer textarea {
+    font-size: 12px;
+    min-height: 43px;
+  }
+  .composer-tools {
+    gap: 2px;
+  }
+  .composer-tools .ui-icon-button {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+  }
+  .source-text-button {
+    font-size: 10px;
+    padding-inline: 1px;
+  }
+  .source-text-button > svg {
+    width: 12px;
+  }
+  .composer-divider {
+    margin-inline: 2px;
+  }
+  .composer-footer {
+    font-size: 9px;
+    gap: 1px 6px;
+  }
+  .composer-footer > button {
+    font-size: 10px;
+  }
+  .target-label {
+    max-width: 130px;
+    font-size: 10px;
+  }
+  .latest-button {
+    right: 16px;
+  }
+  .tab-content {
+    padding: 22px 16px;
+  }
+  .management-scroll {
+    padding: 22px 16px;
+  }
+  .section-heading {
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .section-heading h2 {
+    font-size: 18px;
+  }
+  .section-heading p {
+    font-size: 11px;
+  }
+  .workflow-card {
+    gap: 12px;
+    padding: 16px 13px;
+  }
+  .workflow-card-number {
+    font-size: 22px;
+  }
+  .workflow-card h3 {
+    font-size: 13px;
+  }
+  .workflow-card p {
+    font-size: 11px;
+  }
+  .workflow-card .ui-badge {
+    font-size: 9px;
+    padding-inline: 6px;
+  }
+  .workflow-card > svg {
+    width: 14px;
+  }
+  .workflow-card footer > span:last-child {
+    display: none;
+  }
+  .asset-search {
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .filter-tabs > button {
+    font-size: 11px;
+    padding: 7px 8px;
+  }
+  .asset-grid {
+    gap: 17px;
+  }
+  .memory-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .memory-stats > div {
+    padding: 14px;
+  }
+  .memory-stats strong {
+    font-size: 24px;
+  }
+  .memory-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .memory-section {
+    padding: 17px;
+  }
+  .page-heading {
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .page-heading h1 {
+    font-size: 21px;
+  }
+  .page-heading p {
+    font-size: 11px;
+  }
+  .form-row {
+    gap: 12px;
+  }
+  .source-import-bar {
+    padding: 12px;
+    gap: 9px;
+  }
+  .source-import-bar > button {
+    margin-left: auto;
+  }
+  .invite-agent {
+    align-items: flex-start;
+    gap: 9px;
+  }
+  .invite-agent > .avatar {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+  }
+  .invite-agent strong {
+    font-size: 12px;
+  }
+  .invite-agent p {
+    font-size: 10px;
+  }
+  .invite-agent .ui-button {
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  .lock-option > svg {
+    display: none;
+  }
+  .toast {
+    bottom: max(16px, env(safe-area-inset-bottom));
+    font-size: 11px;
+    padding: 11px 12px;
+  }
+}
+@media (max-width: 360px) {
+  .topbar {
+    padding-inline: 12px;
+  }
+  .project-header {
+    padding-inline: 12px;
+  }
+  .project-title h1 {
+    font-size: 17px;
+  }
+  .project-title > div {
+    gap: 7px;
+  }
+  .project-tabs > [role="tablist"] {
+    gap: 5px;
+  }
+  .project-tabs > [role="tablist"] > button {
+    font-size: 10px;
+  }
+  .project-tabs > [role="tablist"] > button > span {
+    display: none;
+  }
+  .avatar-stack .avatar:nth-child(n + 3) {
+    display: none;
+  }
+  .export-button {
+    padding-inline: 7px;
+    font-size: 9px;
+  }
+  .chat-scroll {
+    padding-inline: 12px;
+  }
+  .composer-wrap {
+    padding-inline: 12px;
+  }
+  .source-text-button > svg {
+    display: none;
+  }
+  .composer-tools .ui-icon-button {
+    width: 25px;
+    flex-basis: 25px;
+  }
+  .send-button {
+    width: 29px;
+    height: 29px;
+    flex-basis: 29px;
+  }
+  .style-options > button {
+    gap: 5px;
+    padding-inline: 3px;
+  }
+  .style-options strong {
+    font-size: 10px;
+  }
+  .approval-bottom .ui-button {
+    font-size: 10px;
+    padding-inline: 8px;
+  }
+}

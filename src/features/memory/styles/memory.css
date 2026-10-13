@@ -1,0 +1,146 @@
+.memory-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 25px;
+}
+.memory-stats > div {
+  border: 1px solid #eae1f1;
+  background: white;
+  border-radius: 8px;
+  padding: 18px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--secondary);
+  min-width: 0;
+}
+.memory-stats strong {
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--accent);
+  line-height: 1;
+  font-family: "Bahnschrift", "Segoe UI", sans-serif;
+}
+.memory-stats span {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.memory-section {
+  border: 1px solid #e8e0ef;
+  border-radius: 9px;
+  padding: 21px;
+  background: white;
+  margin-bottom: 19px;
+  line-height: 1.85;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+}
+.memory-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.memory-section > .section-heading {
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.memory-section .section-heading > .muted {
+  font-size: 10px;
+}
+.memory-note {
+  color: var(--muted);
+  border-top: 1px solid #f1e9f6;
+  padding-top: 12px;
+  margin-top: 18px;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.memory-columns {
+  display: grid;
+  grid-template-columns: 1.08fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+.memory-columns > section {
+  min-width: 0;
+}
+.memory-section > .muted {
+  margin-top: 7px;
+  font-size: 11px;
+}
+.fact-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 9px;
+}
+.fact-list > div {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1eaf6;
+}
+.fact-list > div > span {
+  font-size: 10px;
+  color: var(--secondary);
+  margin-top: 2px;
+}
+.fact-list p {
+  flex: 1;
+  font-size: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fact-list svg {
+  color: var(--secondary);
+  margin-top: 4px;
+}
+.fact-form {
+  display: flex;
+  align-items: center;
+  border: 1px solid #eee4f5;
+  border-radius: 6px;
+  padding: 5px 8px;
+  margin-top: 16px;
+}
+.fact-form input {
+  width: 100%;
+  border: 0;
+  color: var(--secondary);
+  box-shadow: none !important;
+  background: none;
+  font-size: 11px;
+  min-width: 0;
+  outline: none;
+}
+.fact-form input::placeholder {
+  color: var(--secondary);
+}
+.decision-list {
+  display: grid;
+  margin-top: 14px;
+  gap: 16px;
+}
+.decision-list > div {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.85;
+}
+.decision-list svg {
+  margin-top: 3px;
+  color: var(--secondary);
+}

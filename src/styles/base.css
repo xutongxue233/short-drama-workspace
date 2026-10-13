@@ -1,0 +1,121 @@
+/* 映序 Studio: shared controls, independent scroll frames, and responsive production surfaces. Local font stack avoids offline layout shifts. */
+:root {
+  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: var(--ink);
+  background: #f6f7fa;
+  font-synthesis: none;
+  font-size: 13px;
+  font-weight: 400;
+  --accent: var(--ui-accent, #7160cf);
+  --accent-light: var(--ui-accent-soft, #eeebfa);
+  --border: var(--ui-border, #e6e2ed);
+  --muted: var(--ui-muted, #6f687a);
+  --ink: var(--ui-ink, #292734);
+  --sidebar: #f6f6f9;
+  --secondary: #787180;
+  --subtle: #a299ae;
+  --surface: var(--ui-surface-subtle, #f8f7fb);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+button {
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  color: inherit;
+  transition:
+    background 0.16s,
+    color 0.16s,
+    border-color 0.16s,
+    box-shadow 0.16s;
+  border: 0;
+  background: none;
+}
+input {
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+textarea {
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+select {
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+a {
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.16s,
+    color 0.16s,
+    border-color 0.16s,
+    box-shadow 0.16s;
+  color: inherit;
+  text-decoration: none;
+}
+button:not(.ui-button):not(.ui-icon-button):disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+button:focus-visible {
+  outline: 3px solid #aca0e9;
+  outline-offset: 3px;
+}
+a:focus-visible {
+  outline: 3px solid #aca0e9;
+  outline-offset: 3px;
+}
+input:not(.ui-input):not(.ui-textarea):not(.ui-select):focus {
+  outline: none;
+  border-color: #a294dd !important;
+  box-shadow: 0 0 0 3px #7160cf0d;
+}
+textarea:not(.ui-input):not(.ui-textarea):not(.ui-select):focus {
+  outline: none;
+  border-color: #a294dd !important;
+  box-shadow: 0 0 0 3px #7160cf0d;
+}
+select:not(.ui-input):not(.ui-textarea):not(.ui-select):focus {
+  outline: none;
+  border-color: #a294dd !important;
+  box-shadow: 0 0 0 3px #7160cf0d;
+}
+h1 {
+  margin: 0;
+}
+h2 {
+  margin: 0;
+}
+h3 {
+  margin: 0;
+}
+h4 {
+  margin: 0;
+}
+p {
+  margin: 0;
+}
+svg {
+  flex-shrink: 0;
+}
+::selection {
+  background: #e5dffc;
+}
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d9d9e3;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

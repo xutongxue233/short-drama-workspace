@@ -1,0 +1,57 @@
+{
+  "name": "frameflow-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm run dev:api\" \"npm run dev:web\"",
+    "workbench": "concurrently -k -n api,web -c cyan,magenta \"npm start\" \"npm run dev:web\"",
+    "dev:api": "node --env-file-if-exists=.env --watch server/index.mjs",
+    "dev:web": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js",
+    "build": "npm run typecheck && vite build",
+    "start": "node --env-file-if-exists=.env server/index.mjs",
+    "typecheck": "tsc -b",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test:server && npm run test:web",
+    "test:server": "node --test server/*.test.mjs",
+    "test:web": "vitest run",
+    "test:web:watch": "vitest",
+    "check": "npm run format:check && npm run lint && npm run check:architecture && npm test && npm run build",
+    "check:architecture": "node scripts/check-architecture.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/react": "16.3.3",
+    "@types/hast": "^3.0.5",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "concurrently": "^9.1.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "jsdom": "26.1.0",
+    "prettier": "3.9.10",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "^6.3.5",
+    "vitest": "3.2.7"
+  },
+  "engines": {
+    "node": ">=22.13.0",
+    "npm": ">=10"
+  },
+  "packageManager": "npm@10.9.2"
+}

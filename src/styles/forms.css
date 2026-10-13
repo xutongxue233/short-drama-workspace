@@ -1,0 +1,25 @@
+.studio-form-body > .ui-field,
+.studio-form-body > .form-row {
+  margin-bottom: 20px;
+}
+.studio-form-body > :last-child {
+  margin-bottom: 0;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.form-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f7f2fb;
+  border: 1px solid #eee5f5;
+  color: var(--muted);
+  border-radius: 7px;
+  padding: 12px;
+  font-size: 11px;
+  margin: 8px 0;
+  line-height: 1.85;
+}

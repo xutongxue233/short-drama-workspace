@@ -1,0 +1,70 @@
+.management-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 32px 28px;
+  background: #faf9fc;
+  min-width: 0;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  gap: 16px;
+}
+.page-heading h1 {
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.heading-dot {
+  color: var(--accent);
+  margin-left: 3px;
+}
+.page-heading p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+  line-height: 1.85;
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  color: var(--secondary);
+  min-height: 260px;
+  padding: 30px;
+}
+.empty-state h2 {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--secondary);
+}
+.empty-state h3 {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--secondary);
+}
+.empty-state p {
+  font-size: 12px;
+  line-height: 1.85;
+  color: var(--secondary);
+  max-width: 420px;
+}
+.empty-state.compact {
+  min-height: 160px;
+}
+.empty-state.compact p {
+  margin: 0;
+}
+.muted {
+  color: var(--secondary);
+  font-weight: 400;
+}

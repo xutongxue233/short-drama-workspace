@@ -1,0 +1,23 @@
+/* Ordered application style entry. Keep this order to preserve the cascade. */
+@import "./styles/base.css";
+@import "./app/styles/shell.css";
+@import "./features/projects/styles/project.css";
+@import "./features/workspace/styles/chat.css";
+@import "./features/workspace/styles/approval.css";
+@import "./features/workspace/styles/composer.css";
+@import "./features/workflow/styles/inspector.css";
+@import "./styles/content.css";
+@import "./features/workflow/styles/workflow.css";
+@import "./features/assets/styles/gallery.css";
+@import "./features/materials/materials.css";
+@import "./features/memory/styles/memory.css";
+@import "./styles/pages.css";
+@import "./styles/forms.css";
+@import "./app/styles/feedback.css";
+@import "./styles/dialog-content.css";
+@import "./features/projects/styles/source.css";
+@import "./features/assets/styles/editor.css";
+@import "./styles/detail.css";
+@import "./styles/responsive/tablet.css";
+@import "./styles/responsive/mobile.css";
+@import "./styles/responsive/compact.css";

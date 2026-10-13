@@ -1,0 +1,75 @@
+.node-detail > p {
+  margin-bottom: 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.node-detail > .rich-text {
+  padding: 18px;
+  border: 1px solid #eee3f5;
+  border-radius: 8px;
+  background: #fdfbff;
+}
+.invite-list {
+  display: grid;
+  gap: 0;
+}
+.invite-agent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid #f0e3f7;
+}
+.invite-agent > div {
+  flex: 1;
+  min-width: 0;
+}
+.invite-agent strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.invite-agent p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+.invite-agent .ui-button {
+  padding: 6px 10px;
+  font-size: 11px;
+  min-height: 32px;
+}
+.help-steps {
+  display: grid;
+  gap: 24px;
+}
+.help-steps > div {
+  display: flex;
+  gap: 14px;
+}
+.help-steps > div > span {
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 7px;
+  background: #f0e7f7;
+  color: var(--secondary);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+}
+.help-steps strong {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.help-steps p {
+  line-height: 1.9;
+  margin-top: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}

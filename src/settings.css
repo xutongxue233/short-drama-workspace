@@ -1,0 +1,4 @@
+/* Compatibility stylesheet. Feature entries import their own styles. */
+@import "./components/settings/settings.css";
+@import "./features/agents/agents.css";
+@import "./features/models/models.css";

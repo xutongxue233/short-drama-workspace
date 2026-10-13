@@ -1,0 +1,68 @@
+.studio-member-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+.studio-member-identity.small {
+  gap: 7px;
+}
+.studio-member-body {
+  min-width: 0;
+  flex: 1;
+}
+.studio-member-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.studio-member-name > strong {
+  display: block;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.6;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.studio-member-body > small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.studio-member-kind {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+  border: 1px solid #e6dfef;
+  border-radius: 4px;
+  padding: 0 4px;
+  background: #f5f1fa;
+  color: #78618f;
+  font-size: 9px;
+  line-height: 1.6;
+  font-weight: 450;
+  white-space: nowrap;
+}
+.avatar.studio-member-human-avatar {
+  --agent-color: #69788e;
+  background: #edf1f7;
+  color: #69788e;
+}
+.studio-member-identity.small .studio-member-name > strong {
+  font-size: 11px;
+}
+.studio-member-identity.small .studio-member-body > small {
+  font-size: 9px;
+}

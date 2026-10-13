@@ -1,0 +1,33 @@
+:root {
+  --ui-font: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei", sans-serif;
+  --ui-ink: #292734;
+  --ui-muted: #716a7d;
+  --ui-placeholder: #8a8296;
+  --ui-accent: #7160cf;
+  --ui-accent-hover: #6250be;
+  --ui-accent-soft: #f1edfc;
+  --ui-surface: #ffffff;
+  --ui-surface-subtle: #f8f7fb;
+  --ui-border: #e5e1ec;
+  --ui-border-strong: #d3ccdf;
+  --ui-success: #33775a;
+  --ui-success-soft: #eaf5ef;
+  --ui-warning: #93681b;
+  --ui-warning-soft: #fff5df;
+  --ui-danger: #b34756;
+  --ui-danger-soft: #fceff1;
+  --ui-focus: #9280e8;
+  --ui-radius-sm: 7px;
+  --ui-radius-md: 10px;
+  --ui-radius-lg: 16px;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 20px;
+  --ui-space-6: 24px;
+  --ui-control-sm: 32px;
+  --ui-control-md: 38px;
+  --ui-shadow-dialog: 0 28px 90px #30234424, 0 6px 20px #30234412;
+  --ui-motion: 140ms;
+}

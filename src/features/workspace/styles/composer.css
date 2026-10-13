@@ -1,0 +1,321 @@
+.composer-wrap {
+  padding: 13px 28px 12px;
+  background: #fff;
+  position: relative;
+  flex-shrink: 0;
+  border-top: 1px solid #f6f0f9;
+}
+.composer {
+  border: 1px solid #e5deef;
+  border-radius: 11px;
+  padding: 12px 13px 10px;
+  box-shadow: 0 2px 10px #45306404;
+  max-width: 940px;
+  margin: 0 auto;
+  border-color: #e0d2ec;
+}
+.composer:focus-within {
+  border-color: #b8a4d9;
+  box-shadow: 0 0 0 3px #a18bc708;
+}
+.composer-editor {
+  position: relative;
+  min-width: 0;
+}
+.composer-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--ink);
+}
+.composer-mention {
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: 3px;
+}
+.composer textarea {
+  position: relative;
+  border: 0;
+  background: none;
+  resize: none;
+  width: 100%;
+  min-height: 48px;
+  max-height: 120px;
+  padding: 0;
+  line-height: 1.8;
+  box-shadow: none !important;
+  font-size: 13px;
+  color: transparent;
+  caret-color: var(--ink);
+  display: block;
+  outline: none;
+}
+.composer textarea::selection {
+  background: #a99be655;
+}
+.composer-recipient {
+  margin: 7px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.composer-recipient > span {
+  color: var(--subtle);
+  margin-left: auto;
+}
+.mention-picker {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: min(340px, 100%);
+  z-index: 20;
+  padding: 5px;
+  border: 1px solid #ded5ec;
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 8px 30px #3023401f;
+}
+.mention-picker-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 8px 9px;
+  color: var(--ink);
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+}
+.mention-picker-heading small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.mention-options {
+  max-height: min(245px, 32dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 4px;
+}
+.mention-options > button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  text-align: left;
+}
+.mention-options > button[aria-selected="true"] {
+  background: var(--accent-light);
+}
+.mention-option-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.mention-option-copy strong,
+.mention-option-copy small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mention-option-copy strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.mention-option-copy small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.mention-options > button > svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.mention-empty {
+  margin: 0;
+  padding: 12px 8px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+@media (max-width: 600px) {
+  .composer-highlight {
+    font-size: 12px;
+  }
+  .composer-recipient > span {
+    display: none;
+  }
+}
+.composer textarea::placeholder {
+  color: var(--muted);
+}
+.composer-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.composer .chat-intent-select {
+  width: 98px;
+  min-height: 29px;
+  height: 29px;
+  padding: 3px 25px 3px 8px;
+  font-size: 11px;
+  flex: 0 0 auto;
+  border-color: #e5ddec;
+  border-radius: 6px;
+  background-color: #fcfafe;
+}
+.composer-tools .ui-icon-button {
+  height: 29px;
+  width: 29px;
+  color: var(--muted);
+  flex-basis: 29px;
+}
+.composer-tools .ui-icon-button.selected {
+  background: #f0eaf8;
+  color: var(--secondary);
+}
+.composer-divider {
+  height: 12px;
+  background: #e9e2f0;
+  width: 1px;
+  margin: 0 5px;
+}
+.source-text-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  min-height: 29px;
+  white-space: nowrap;
+}
+.source-text-button > span {
+  font-size: 10px;
+  background: #f3eef9;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.send-button {
+  height: 31px;
+  width: 33px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--accent);
+  flex: 0 0 33px;
+}
+.send-button:disabled {
+  background: #c9b8dd;
+  opacity: 1;
+  color: white;
+}
+.composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 9px;
+  color: var(--muted);
+  gap: 3px 10px;
+  font-size: 10px;
+  max-width: 940px;
+  margin: 8px auto 0;
+  flex-wrap: wrap;
+  line-height: 1.6;
+}
+.composer-footer > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+.composer-footer > button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  padding: 2px 0;
+  font-size: 11px;
+  margin-left: auto;
+  min-height: 23px;
+}
+.composer-footer > button:disabled {
+  color: var(--muted);
+  opacity: 1;
+}
+.target-label {
+  font-size: 10px;
+  color: var(--muted);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  max-width: 170px;
+  min-width: 0;
+  min-height: 27px;
+  padding: 3px 5px;
+  background: #f6eefb;
+  border-radius: 5px;
+}
+.latest-button {
+  position: absolute;
+  top: -29px;
+  right: 33px;
+  border: 1px solid #e5dced;
+  background: white;
+  color: var(--secondary);
+  border-radius: 15px;
+  padding: 6px 9px;
+  font-size: 10px;
+  box-shadow: 0 2px 8px #4734570c;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.finished-card {
+  background: #f1f7f4;
+  border: 1px solid #e0eee5;
+  color: var(--muted);
+  display: flex;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 9px;
+  align-items: center;
+  margin: 20px 0;
+}
+.finished-card strong {
+  font-size: 12px;
+}
+.finished-card p {
+  font-size: 10px;
+  margin-top: 6px;
+  line-height: 1.7;
+}
+.finished-card > .ui-button {
+  margin-left: auto;
+}

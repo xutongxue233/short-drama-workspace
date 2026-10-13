@@ -1,0 +1,35 @@
+.tab-content {
+  padding: 28px;
+  overflow: auto;
+  min-height: 100%;
+  background: #fcfafd;
+}
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px 20px;
+  margin-bottom: 24px;
+  min-width: 0;
+}
+.section-heading h2 {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #61466e;
+  overflow-wrap: anywhere;
+}
+.section-heading p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.85;
+}
+.eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 1.6px;
+  margin-bottom: 9px;
+  line-height: 1.6;
+}
