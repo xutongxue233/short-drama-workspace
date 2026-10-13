@@ -8,10 +8,7 @@ Coordinate specialist AI agents, review creative decisions, and keep every episo
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-[![Quality checks](https://github.com/xutongxue233/short-drama-workspace/actions/workflows/ci.yml/badge.svg)](https://github.com/xutongxue233/short-drama-workspace/actions/workflows/ci.yml)
-[![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.13-417E38?logo=nodedotjs&logoColor=white)](package.json)
-[![SQLite](https://img.shields.io/badge/storage-SQLite-003B57?logo=sqlite&logoColor=white)](docs/architecture.md)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Quality checks](https://github.com/xutongxue233/short-drama-workspace/actions/workflows/ci.yml/badge.svg)](https://github.com/xutongxue233/short-drama-workspace/actions/workflows/ci.yml) [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.13-417E38?logo=nodedotjs&logoColor=white)](package.json) [![SQLite](https://img.shields.io/badge/storage-SQLite-003B57?logo=sqlite&logoColor=white)](docs/architecture.md) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [Quick start](#quick-start) · [Features](#features) · [Workflow](#workflow) · [Documentation](#documentation)
 

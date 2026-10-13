@@ -8,9 +8,7 @@
 
 [English](./README.md) · **简体中文**
 
-[![CI](https://github.com/xutongxue233/short-drama-workspace/actions/workflows/ci.yml/badge.svg)](https://github.com/xutongxue233/short-drama-workspace/actions/workflows/ci.yml)
-[![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.13-417e38?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![CI](https://github.com/xutongxue233/short-drama-workspace/actions/workflows/ci.yml/badge.svg)](https://github.com/xutongxue233/short-drama-workspace/actions/workflows/ci.yml) [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.13-417e38?logo=nodedotjs&logoColor=white)](https://nodejs.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 [快速开始](#快速开始) · [创作第一集](#创作第一集) · [使用手册](./docs/usage.zh-CN.md) · [参与开发](./CONTRIBUTING.md)
 
