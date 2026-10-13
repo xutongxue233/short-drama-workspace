@@ -13,6 +13,26 @@ import { productionCommand } from "./chat-commands.mjs";
 import { uid } from "../seed.mjs";
 import { projectTask } from "./project-tasks.mjs";
 import { stateTransaction } from "../state-transaction.mjs";
+import { resolveSkills, formatSkillInstructions, skillUsage } from "../skills.mjs";
+
+function requestedSkills(content, input, state) {
+  const ids = input === undefined ? [] : input;
+  if (!Array.isArray(ids)) throw new HttpError(400, "技能标识必须是数组");
+  const names = content.matchAll(
+    /(?<![\p{L}\p{N}_$\\])\$([a-z0-9]+(?:-[a-z0-9]+)*)(?![\p{L}\p{N}_-])/giu,
+  );
+  const selected = [...ids];
+  for (const [, token] of names) {
+    const name = token.toLowerCase();
+    const skill = state.skills?.find((item) => item.name === name);
+    // Ordinary currency amounts are not invocations; known numeric names are.
+    if (!skill && /^\d+$/.test(name)) continue;
+    if (!skill)
+      throw new HttpError(400, `技能 $${token} 不存在，请在技能库确认名称后重试。`);
+    selected.push(skill.id);
+  }
+  return [...new Set(selected)];
+}
 
 function replyFailure(error, providers) {
   let detail = String(error?.message || "请求失败");
@@ -50,6 +70,13 @@ export function createChatService({ getState, save, workflow, materials }) {
         : textInput(input.agentId, "Agent 标识", { max: 80, required: true });
     const agent = getState().agents.find((item) => item.id === agentId);
     if (!agent || !agent.enabled) throw new HttpError(400, "目标 Agent 不存在或未启用");
+    const explicitSkillIds = requestedSkills(content, input.skillIds, getState());
+    // Resolve and copy before saving the user's message or inviting a member.
+    // Skill edits during an in-flight request affect only subsequent requests.
+    const skills = resolveSkills(getState(), agent, explicitSkillIds);
+    const command = explicitSkillIds.length
+      ? null
+      : productionCommand(content, agent, input.intent);
     const message = stateTransaction(project, () => {
       workflow.invite(project, agentId);
       const message = addMessage(project, "user", content, "text");
@@ -57,7 +84,6 @@ export function createChatService({ getState, save, workflow, materials }) {
       save();
       return message;
     });
-    const command = productionCommand(content, agent, input.intent);
     if (command) {
       let reply;
       try {
@@ -160,7 +186,12 @@ export function createChatService({ getState, save, workflow, materials }) {
             `正在处理本条讨论消息，结合本集资料生成回复。`,
             "system",
             undefined,
-            { kind: "start", scope: "chat", runId },
+            {
+              kind: "start",
+              scope: "chat",
+              runId,
+              ...(skills.length ? { skills: skillUsage(skills) } : {}),
+            },
           );
           started.replyTo = message.id;
           save();
@@ -172,7 +203,7 @@ export function createChatService({ getState, save, workflow, materials }) {
             ? agent.model || provider.model
             : fallbackAgent.model || provider.model,
         system: `${agent.systemPrompt}\n这是项目群的文字讨论。请直接回答当前用户，使用清晰的 Markdown 标题、列表和表格。本次提供的章节或片段仅用于制作一集，不预设或询问全剧集数，不推演未提供的后续原文。已配置的视觉风格与制作参数直接沿用，不重复提问。非阻塞的未知事项使用原文称呼或明确标注建议，不要要求用户一次回答一长串问题。不要执行审批或声称已推进工作流，不要声称生成了媒体。若用户讨论如何推进，告知可向总制片发送“开始制作”或“继续制作”，正式审批由系统确认卡处理。`,
-        prompt: `${context.prompt}\n\n当前用户对「${agent.name}」的消息：\n${content}\n请根据本项目资料回答；明确区分原文事实、创作建议和未确认部分。`,
+        prompt: `${context.prompt}\n\n当前用户对「${agent.name}」的消息：\n${content}\n请根据本项目资料回答；明确区分原文事实、创作建议和未确认部分。${skills.length ? `\n\n${formatSkillInstructions(skills)}` : ""}`,
         references: materials
           ? await materials.references(context.references, "text")
           : context.references,
@@ -186,6 +217,7 @@ export function createChatService({ getState, save, workflow, materials }) {
         kind: "result",
         scope: "chat",
         runId,
+        ...(skills.length ? { skills: skillUsage(skills) } : {}),
       });
       reply.replyTo = message.id;
     } catch (error) {

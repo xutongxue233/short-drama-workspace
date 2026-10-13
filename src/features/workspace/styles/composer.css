@@ -169,7 +169,8 @@
   min-width: 0;
   flex-wrap: wrap;
 }
-.composer .chat-intent-select {
+.composer .chat-intent-select,
+.composer .chat-skill-select {
   width: 98px;
   min-height: 29px;
   height: 29px;
@@ -179,6 +180,32 @@
   border-color: #e5ddec;
   border-radius: 6px;
   background-color: #fcfafe;
+}
+.composer-skill-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.message-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0;
+  margin: 10px 0 0;
+  list-style: none;
+}
+.message-skills li {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 6px;
+  color: var(--secondary);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.message-skills span {
+  color: var(--muted);
 }
 .composer-tools .ui-icon-button {
   height: 29px;

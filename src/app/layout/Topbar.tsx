@@ -30,7 +30,9 @@ export function Topbar({
                 ? "素材库"
                 : view === "agents"
                   ? "Agent 中心"
-                  : "模型接入"}
+                  : view === "skills"
+                    ? "技能库"
+                    : "模型接入"}
         </strong>
       </div>
       <div className="topbar-right">

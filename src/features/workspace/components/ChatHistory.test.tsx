@@ -67,6 +67,20 @@ function history(
 }
 
 describe("chat response visibility", () => {
+  it("shows the actual skill revision recorded with a response", () => {
+    history([
+      message({
+        event: {
+          kind: "result",
+          scope: "chat",
+          skills: [{ id: "skill-1", name: "script-review", version: 3 }],
+        },
+      }),
+    ]);
+    expect(screen.getByRole("list", { name: "本次使用的技能" }).textContent).toContain(
+      "$script-review v3",
+    );
+  });
   it("keeps human and agent identities clear without repeating the project intro", () => {
     const view = history(
       [

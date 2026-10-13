@@ -1,5 +1,5 @@
 import type { Action, AssetSelection, Tab } from "../../shared/contracts";
-import type { Agent, Project, WorkflowNode } from "../../types";
+import type { Agent, Project, Skill, WorkflowNode } from "../../types";
 import { Badge } from "../../ui";
 import { AssetGallery } from "../assets";
 import { MemoryPanel } from "../memory";
@@ -11,6 +11,7 @@ import { ChatPanel } from "./components/ChatPanel";
 export function ProjectWorkspace({
   project,
   agents,
+  skills = [],
   tab,
   onTabChange,
   inspectorOpen,
@@ -26,6 +27,7 @@ export function ProjectWorkspace({
 }: {
   project: Project;
   agents: Agent[];
+  skills?: Skill[];
   tab: Tab;
   onTabChange: (tab: Tab) => void;
   inspectorOpen: boolean;
@@ -71,6 +73,7 @@ export function ProjectWorkspace({
               key={`${project.id}-${project.currentEpisode?.id ?? "current"}`}
               project={project}
               agents={agents}
+              skills={skills}
               busy={busy}
               onAction={onAction}
               onSource={onSource}

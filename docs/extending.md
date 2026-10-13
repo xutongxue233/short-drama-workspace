@@ -25,6 +25,12 @@ Agent 的默认资料位于 `server/seed.mjs`；制作节点列表是其中的 `
 
 集成测试至少覆盖正常推进、人工确认、拒绝与返修、失败重试、暂停/关停、上游修改后下游失效，以及不同项目上下文隔离。
 
+## 扩展技能
+
+维护创作方法优先使用「技能库」和 `SKILL.md` 导入导出，不必修改 Agent 的整段系统提示词。技能文件格式沿用 [OpenAI 技能文档](https://learn.chatgpt.com/docs/build-skills) 的 `name`、`description` 与指令正文，Frameflow 只支持这一指令子集。导入时不执行脚本、不读取引用资源，额外元数据不会往返保留。
+
+运行时统一使用 `server/skills.mjs` 的解析与快照 helper。增加文字执行路径时，同步传入有效绑定、记录实际版本，并将技能纳入依赖内容的检查点；不要改动媒体任务恢复标识。新代码通过 `src/features/skills/index.ts` 引用管理页。接口与旧数据回归位于 `server/skills.test.mjs`，运行时回归位于 `server/skill-runtime.test.mjs`。
+
 ## 增加工作台功能或 UI 控件
 
 业务功能放在 `src/features/<domain>`，通过 `index.ts` 导出外部需要的入口。业务动作由上层注入，网络请求复用 `src/api.ts`；不要让通用控件调用 API。

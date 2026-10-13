@@ -89,6 +89,7 @@ export function workspaceSnapshot(
   if (!compact && projectId === undefined)
     return {
       ...state,
+      skills: state.skills || [],
       projects: state.projects.map((project) => publicProject(project, state, chat)),
       providers: state.providers.map(publicProvider),
     };
@@ -114,6 +115,7 @@ export function workspaceSnapshot(
   }
   return {
     ...state,
+    skills: state.skills || [],
     projects,
     projectSummaries: state.projects.map((project) =>
       projectSummary(project, store, chat),

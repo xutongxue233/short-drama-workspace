@@ -206,6 +206,72 @@
 .settings-empty p {
   line-height: 1.8;
 }
+.agent-skill-bindings {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.agent-skill-bindings legend {
+  display: flex;
+  gap: 12px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ui-ink);
+}
+.agent-skill-bindings legend span,
+.agent-skill-bindings > p {
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.agent-skill-options {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+}
+.agent-skill-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  cursor: pointer;
+}
+.agent-skill-option + .agent-skill-option {
+  border-top: 1px solid var(--ui-border);
+}
+.agent-skill-option input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--ui-accent);
+}
+.agent-skill-option > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ui-muted);
+  overflow-wrap: anywhere;
+}
+.agent-skill-option strong {
+  color: var(--ui-ink);
+  font-weight: 500;
+}
+.agent-skill-option em {
+  color: var(--ui-muted);
+  font-style: normal;
+  margin-left: 8px;
+  font-size: 11px;
+}
+.agent-skill-empty {
+  padding: 12px;
+  border: 1px dashed var(--ui-border);
+  border-radius: 8px;
+}
 @container (max-width: 720px) {
   .settings-crew-mini {
     display: none;

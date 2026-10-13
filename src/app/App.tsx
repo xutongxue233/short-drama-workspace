@@ -15,6 +15,7 @@ import {
 } from "../features/workflow";
 import { ProjectWorkspace } from "../features/workspace";
 import { ModelCenter } from "../features/models";
+import { SkillCenter } from "../features/skills";
 import { MaterialLibrary } from "../features/materials";
 import type { AssetSelection, Tab, View } from "../shared/contracts";
 import type { Project, WorkflowNode } from "../types";
@@ -131,6 +132,10 @@ export default function App() {
           <div key="models" className="management-scroll">
             <ModelCenter state={state} mutate={mutate} notify={notify} />
           </div>
+        ) : view === "skills" ? (
+          <div key="skills" className="management-scroll">
+            <SkillCenter state={state} mutate={mutate} notify={notify} />
+          </div>
         ) : view === "assets" ? (
           <AssetLibrary
             key="assets"
@@ -152,6 +157,7 @@ export default function App() {
           <ProjectWorkspace
             project={project}
             agents={state.agents}
+            skills={state.skills ?? []}
             tab={tab}
             onTabChange={setTab}
             inspectorOpen={inspectorOpen}

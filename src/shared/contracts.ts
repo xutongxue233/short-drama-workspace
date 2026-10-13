@@ -1,5 +1,6 @@
 import type { Asset } from "../types";
-export type View = "workspace" | "assets" | "materials" | "agents" | "models";
+export type View =
+  "workspace" | "assets" | "materials" | "agents" | "models" | "skills";
 export type Tab = "chat" | "workflow" | "assets" | "materials" | "memory";
 export type Action = (
   path: string,
