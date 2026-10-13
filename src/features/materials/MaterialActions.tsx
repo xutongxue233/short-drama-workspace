@@ -16,17 +16,31 @@ export function MaterialActions({
 }) {
   if (material.status === "local")
     return (
-      <a
-        className="ui-button ui-button-secondary ui-control-sm"
-        href={materialFileUrl(material.id, true)}
-        download
-        aria-label={`下载 ${material.name}`}
-      >
-        <span className="ui-button-content">
-          <Download size={14} />
-          下载文件
-        </span>
-      </a>
+      <>
+        <a
+          className="ui-button ui-button-secondary ui-control-sm"
+          href={materialFileUrl(material.id, true)}
+          download
+          aria-label={`下载 ${material.name}`}
+        >
+          <span className="ui-button-content">
+            <Download size={14} />
+            下载文件
+          </span>
+        </a>
+        {material.error && (
+          <Button
+            size="sm"
+            disabled={busy}
+            loading={saving}
+            onClick={onSave}
+            aria-label={`重试保存记录 ${material.name}`}
+          >
+            <RotateCcw size={14} />
+            重试保存记录
+          </Button>
+        )}
+      </>
     );
   return (
     <Button

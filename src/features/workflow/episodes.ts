@@ -3,6 +3,7 @@ import type { EpisodeArchive, Project } from "../../types";
 export function canStartNextEpisode(project: Project) {
   return (
     !project.running &&
+    !project.backgroundTask &&
     !project.approval &&
     !project.chatPending &&
     project.nodes.length > 0 &&
@@ -34,6 +35,7 @@ export function archivedEpisodeProject(
     memory: episode.memory,
     productionBrief: episode.productionBrief,
     running: false,
+    backgroundTask: null,
     chatPending: null,
     approval: null,
     workflowIssues: [],

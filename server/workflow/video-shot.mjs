@@ -31,6 +31,14 @@ function timing(rangeText, durationText, label = "首镜") {
   return { startSeconds: start, endSeconds: end, durationSeconds: end - start };
 }
 
+function postproduction(frame, note) {
+  return (
+    /后期(?:制作|叠)/u.test(`${note} ${frame}`) &&
+    /^(?:纯黑|全黑|黑场|黑屏|仅字卡|仅字幕卡|静态字卡)/u.test(frame) &&
+    !/人影|露脸|可辨身体|渐显人物|人物出现/u.test(frame)
+  );
+}
+
 function firstTableShot(content, requestedId) {
   const lines = content.split(/\r?\n/u);
   const skippedShots = [];
@@ -63,12 +71,10 @@ function firstTableShot(content, requestedId) {
         "u",
       ).test(clean(content));
       if (
-        (/后期(?:制作|叠)/u.test(`${get(/制作|备注|类型/u)} ${values[frameColumn]}`) ||
-          postNote) &&
-        /^(?:纯黑|全黑|黑场|黑屏|仅字卡|仅字幕卡|静态字卡)/u.test(
+        postproduction(
           values[frameColumn],
-        ) &&
-        !/人影|露脸|可辨身体|渐显人物|人物出现/u.test(values[frameColumn])
+          postNote ? "后期制作" : get(/制作|备注|类型/u),
+        )
       ) {
         if (requestedId === shotId)
           throw new Error(`镜头 ${shotId} 已明确安排为后期制作，不能提交视频模型。`);
@@ -99,46 +105,57 @@ function firstTableShot(content, requestedId) {
 
 function firstSectionShot(content, requestedId) {
   const lines = content.split(/\r?\n/u);
-  const target = new RegExp(
-    `^(?:#{1,6}\\s*)?(?:[-*]\\s*)?(?:镜头|镜号|镜)\\s*0*${Number(requestedId || 1)}(?:\\D|$)`,
-    "u",
-  );
-  const start = lines.findIndex((line) => target.test(clean(line)));
-  if (start < 0) return undefined;
-  const next = lines.findIndex(
-    (line, index) =>
-      index > start && /^(?:#{1,6}\s*)?(?:镜头|镜号|镜)\s*\d+/u.test(clean(line)),
-  );
-  const block = lines.slice(start, next < 0 ? undefined : next).join("\n");
-  const field = (label) => {
-    const match = new RegExp(`^(?:[-*]\\s*)?(?:${label})\\s*[:：]\\s*(.+)$`, "mu").exec(
-      block.split("\n").map(clean).join("\n"),
+  // One heading parser defines both the start and end of every shot.
+  const headings = lines.flatMap((line, index) => {
+    const match = /^(?:#{1,6}\s*)?(?:[-*]\s*)?(?:镜头|镜号|镜)\s*0*(\d+)(?:\D|$)/u.exec(
+      clean(line),
     );
-    return match?.[1]?.trim() || "";
-  };
-  const frame = field("画面(?:与声音)?|画面描述|视觉内容|内容");
-  if (
-    requestedId &&
-    /后期(?:制作|叠)/u.test(`${field("制作方式|制作|类型|备注")} ${frame}`) &&
-    /^(?:纯黑|全黑|黑场|黑屏|仅字卡|仅字幕卡|静态字卡)/u.test(frame) &&
-    !/人影|露脸|可辨身体|渐显人物|人物出现/u.test(frame)
-  )
-    throw new Error(`镜头 ${requestedId} 已明确安排为后期制作，不能提交视频模型。`);
-  return {
-    id: requestedId || "01",
-    ...timing(
-      field("起止秒数|起止时间|时间段|时间码|秒数|时间|时段") || clean(lines[start]),
-      field("时长"),
-      requestedId ? `镜头 ${requestedId}` : "首镜",
-    ),
-    frame,
-    action: field("动作|人物动作"),
-    sound: field("对白|声音|音效|台词|旁白|对白与音效"),
-    camera: field("运镜|机位|镜头运动"),
-    shotSize: field("景别"),
-    characters: field("出镜角色|出镜人物|人物|角色"),
-    assetReferences: field("角色资产|资产引用|参考资产|引用"),
-  };
+    return match ? [{ index, id: String(Number(match[1])).padStart(2, "0") }] : [];
+  });
+  const skippedShots = [];
+  for (const [index, heading] of headings.entries()) {
+    if (!requestedId && index === 0 && heading.id !== "01")
+      throw new Error(
+        "批准分镜缺少镜头01，请补齐首镜或明确标注前置后期镜头后重新确认。",
+      );
+    const block = lines
+      .slice(heading.index, headings[index + 1]?.index)
+      .map(clean)
+      .join("\n");
+    const field = (label) => {
+      const match = new RegExp(
+        `^(?:[-*]\\s*)?(?:${label})\\s*[:：]\\s*(.+)$`,
+        "mu",
+      ).exec(block);
+      return match?.[1]?.trim() || "";
+    };
+    const frame = field("画面(?:与声音)?|画面描述|视觉内容|内容");
+    if (postproduction(frame, field("制作方式|制作|类型|备注"))) {
+      if (requestedId === heading.id)
+        throw new Error(`镜头 ${requestedId} 已明确安排为后期制作，不能提交视频模型。`);
+      skippedShots.push({ id: heading.id, frame, reason: "分镜已明确标注后期制作" });
+      continue;
+    }
+    if (requestedId && requestedId !== heading.id) continue;
+    return {
+      id: heading.id,
+      skippedShots,
+      ...timing(
+        field("起止秒数|起止时间|时间段|时间码|秒数|时间|时段") ||
+          clean(lines[heading.index]),
+        field("时长"),
+        requestedId ? `镜头 ${requestedId}` : "首镜",
+      ),
+      frame,
+      action: field("动作|人物动作"),
+      sound: field("对白|声音|音效|台词|旁白|对白与音效"),
+      camera: field("运镜|机位|镜头运动"),
+      shotSize: field("景别"),
+      characters: field("出镜角色|出镜人物|人物|角色"),
+      assetReferences: field("角色资产|资产引用|参考资产|引用"),
+    };
+  }
+  return undefined;
 }
 
 function aliases(asset) {
@@ -151,11 +168,31 @@ function aliases(asset) {
 }
 
 function participantEntries(value) {
-  return clean(value)
-    .split(/[；;]/u)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
+  const entries = [];
+  let depth = 0;
+  let entry = "";
+  for (const character of clean(value)) {
+    if ("（([".includes(character)) depth++;
+    if ("）)]".includes(character)) depth = Math.max(0, depth - 1);
+    if (depth === 0 && /[；;、，,]/u.test(character)) {
+      if (entry.trim()) entries.push(entry.trim());
+      entry = "";
+    } else entry += character;
+  }
+  if (entry.trim()) entries.push(entry.trim());
+  return entries;
 }
+
+const noCharacters = (entry) =>
+  /^(?:无|无人|空镜|无人物|无角色|不出镜|—|-)$/u.test(entry);
+const assetIds = (entry) =>
+  (entry.match(/asset-[A-Za-z0-9-]+/gu) || []).map((id) => id.replace(/-v\d+$/iu, ""));
+const nameMentions = (entry, asset) =>
+  aliases(asset).some((name) => entry.includes(name));
+const mentions = (entry, asset) => {
+  const ids = assetIds(entry);
+  return ids.length ? ids.includes(asset.id) : nameMentions(entry, asset);
+};
 
 function voiceOnly(entry) {
   return (
@@ -209,6 +246,10 @@ export function buildVideoShotRequest(project, { shotId } = {}) {
   const ratio = project.productionBrief?.aspectRatio;
   if (!ratio || ratio === "adaptive")
     throw new Error("视频制作缺少已确认画幅，请先确认本轮制作方案。");
+  if (!shot.characters.trim())
+    throw new Error(
+      `${label}缺少人物栏，请逐人列出出镜角色及资产引用；空镜明确填写“无”，仅声音角色注明“仅画外音”，再重新确认分镜。`,
+    );
   const visibleCharacters = participantEntries(shot.characters)
     .filter((entry) => !voiceOnly(entry))
     .join("；");
@@ -223,9 +264,7 @@ export function buildVideoShotRequest(project, { shotId } = {}) {
   const standards = (project.assets || []).filter(
     (asset) => ["character", "scene"].includes(asset.type) && activeReference(asset),
   );
-  for (const id of (visual.match(/asset-[A-Za-z0-9-]+/gu) || []).map((value) =>
-    value.replace(/-v\d+$/iu, ""),
-  ))
+  for (const id of assetIds(visual))
     if (!standards.some((asset) => asset.id === id))
       throw new Error(
         `${label}引用资产「${id}」未锁定、已过期或不存在，请修正分镜引用后重新确认。`,
@@ -239,18 +278,40 @@ export function buildVideoShotRequest(project, { shotId } = {}) {
             ? visibleCharacters
             : visual
         : visual;
-    return (
-      scope.includes(asset.id) || aliases(asset).some((name) => scope.includes(name))
-    );
+    return scope
+      .split(/\n/u)
+      .flatMap(participantEntries)
+      .some((entry) => mentions(entry, asset));
   });
-  if (
-    visibleCharacters &&
-    !/^(?:无|无人|空镜|无人物|无角色|—|-)$/u.test(visibleCharacters) &&
-    !selected.some((asset) => asset.type === "character")
-  )
-    throw new Error(
-      `${label}出镜人物「${shot.characters}」尚未匹配到有效锁定角色，请在分镜中标明角色姓名、资产 ID 和版本。`,
-    );
+  const participants = participantEntries(visibleCharacters).filter(
+    (entry) => !noCharacters(entry),
+  );
+  const people = standards.filter((asset) => asset.type === "character");
+  const declared = participants.map((entry) => {
+    const matches = people.filter((asset) => mentions(entry, asset));
+    const named = people.filter((asset) => nameMentions(entry, asset));
+    if (
+      matches.length !== 1 ||
+      (assetIds(entry).length && named.length && !named.includes(matches[0]))
+    )
+      throw new Error(
+        `${label}出镜人物「${entry}」未能唯一匹配有效锁定角色，请逐人填写姓名、资产 ID 和版本，避免漏项或冲突。`,
+      );
+    if (!selected.includes(matches[0]))
+      throw new Error(
+        `${label}资产引用遗漏出镜人物「${matches[0].name}」，请补全其已锁定参考图后重新确认分镜。`,
+      );
+    return matches[0];
+  });
+  for (const asset of selected)
+    if (
+      asset.type === "character" &&
+      asset.characterDesign?.subjectType !== "object" &&
+      !declared.includes(asset)
+    )
+      throw new Error(
+        `${label}资产引用中的「${asset.name}」未列为出镜人物，请核对人物栏和参考资产，不能把画外音或其他人物作为本镜形象。`,
+      );
   for (const asset of selected) {
     if (!asset.url)
       throw new Error(

@@ -36,7 +36,7 @@ Field 及其控件共用内部上下文，Dialog 的层级、焦点、背景隔�
 | Select           | 自绘单选菜单，保持 `value/defaultValue`、`onChange` 与 `<option>` 接口；支持 `searchable`、`searchPlaceholder`、分组、原生表单校验和重置         |
 | EmptyState       | `icon`、`title`、`description`、`action`；解释当前状态并提供下一步                                                                               |
 | Dialog           | `title`、`description`、`onClose`、`wide`、`busy`、`dirty`、`initialFocusRef`；使用 portal，内容区独立滚动                                       |
-| DialogClose      | 通过所在 Dialog 的统一关闭流程退出；编辑表单的取消按钮应使用此组件                                                                               |
+| DialogClose      | 通过所在 Dialog 的统一关闭流程退出；`onConfirmClose` 可指定通过 busy/dirty 保护后执行的导航动作，代替默认 onClose                                |
 
 ## 下拉选择
 

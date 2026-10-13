@@ -57,4 +57,4 @@ npm run dev
 
 前端的 `App.tsx`、`SettingsViews.tsx`、`providerPresets.ts` 与后端 `providers.mjs` 等旧入口保留兼容导出。新代码使用业务模块的公开入口，不往兼容文件添加实现。
 
-CI 文件已配置，实际远端结果以 GitHub Actions 运行记录为准。当前本地目录尚未配置 Git 仓库和远端，CI 不会在本机自动执行。
+CI 文件已配置，实际远端结果以 GitHub Actions 运行记录为准。本地 Git 仓库已建立，尚未配置远端；提交前仍须在本机执行完整检查。

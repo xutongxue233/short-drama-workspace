@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createProject, createSeedState } from "./seed.mjs";
 import { createWorkflow } from "./workflow.mjs";
+import { createLocalModel } from "./test-support/local-model.mjs";
 
 function videoProject() {
   const project = createProject({ name: "指定镜头恢复", style: "二次元动画" });
@@ -57,6 +58,61 @@ test("invalid requested shots never mutate workflow state or invalidate approved
   ])
     assert.throws(() => workflow.start(project, input), /仅适用于|后期制作|未找到/);
   assert.equal(JSON.stringify(project), before);
+});
+
+test("an obsolete paid task blocks changed storyboards until explicit archival then permits a new generation", async (t) => {
+  const model = await createLocalModel(t);
+  const project = videoProject();
+  project.assets.find((asset) => asset.type === "storyboard").version = 2;
+  project.nodes.find((node) => node.id === "delivery").status = "completed";
+  const state = { ...createSeedState(), projects: [project] };
+  model.bind(state);
+  const node = project.nodes.find((node) => node.id === "video");
+  node.videoGeneration = {
+    taskId: "old-paid-task",
+    providerId: "previous-minimax-provider",
+    baseUrl: "https://example.test",
+    model: "MiniMax-H3",
+    shotId: "08",
+    requestKey: "storyboard-v1",
+  };
+  const saved = [];
+  const workflow = createWorkflow({
+    getState: () => state,
+    save() {
+      saved.push(structuredClone(project));
+    },
+  });
+  t.after(workflow.close);
+  const run = async () => {
+    workflow.start(project, { nodeId: "video", shotId: "08" });
+    await workflow.jobs.get(project.id)?.promise;
+  };
+  await run();
+  assert.equal(node.status, "failed");
+  assert.match(node.error, /尚未取回/);
+  assert.equal(model.requests.length, 0);
+  workflow.archiveVideoTask(project, {
+    taskId: "old-paid-task",
+    acknowledgement: "archive-without-cancelling",
+  });
+  assert.equal(model.requests.length, 0);
+  assert.ok(
+    saved.some(
+      (checkpoint) =>
+        checkpoint.nodes.find((item) => item.id === "video").videoTaskHistory?.[0]
+          ?.taskId === "old-paid-task",
+    ),
+  );
+  await run();
+  assert.equal(
+    model.requests.filter((request) => request.path === "/videos").length,
+    1,
+  );
+  const video = project.assets.find((asset) => asset.type === "video");
+  assert.equal(video.videoShot.id, "08");
+  assert.equal(video.videoShot.storyboardVersion, 2);
+  assert.equal(node.videoTaskHistory[0].taskId, "old-paid-task");
 });
 
 test("MiniMax resumes transient failures but archives terminal failures before an explicit new generation", async (t) => {

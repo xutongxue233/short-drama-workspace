@@ -11,6 +11,8 @@ import { redact } from "../providers/config.mjs";
 import { mentionedAgent } from "./chat-mentions.mjs";
 import { productionCommand } from "./chat-commands.mjs";
 import { uid } from "../seed.mjs";
+import { projectTask } from "./project-tasks.mjs";
+import { stateTransaction } from "../state-transaction.mjs";
 
 function replyFailure(error, providers) {
   let detail = String(error?.message || "请求失败");
@@ -30,6 +32,8 @@ export function createChatService({ getState, save, workflow, materials }) {
   let closed = false;
   async function sendMessage(project, input, { signal } = {}) {
     if (closed) throw new HttpError(503, "本地服务正在关闭，请稍后重试。");
+    if (projectTask(project))
+      throw new HttpError(409, "图片测试仍在进行，请等待完成后发送消息。");
     if (chatJobs.has(project.id))
       throw new HttpError(409, "上一条 Agent 回复仍在生成，请等待后再发送。");
 
@@ -46,10 +50,13 @@ export function createChatService({ getState, save, workflow, materials }) {
         : textInput(input.agentId, "Agent 标识", { max: 80, required: true });
     const agent = getState().agents.find((item) => item.id === agentId);
     if (!agent || !agent.enabled) throw new HttpError(400, "目标 Agent 不存在或未启用");
-    workflow.invite(project, agentId);
-    const message = addMessage(project, "user", content, "text");
-    remember(project, `用户反馈（交给${agent.name}）：${content}`);
-    save();
+    const message = stateTransaction(project, () => {
+      workflow.invite(project, agentId);
+      const message = addMessage(project, "user", content, "text");
+      remember(project, `用户反馈（交给${agent.name}）：${content}`);
+      save();
+      return message;
+    });
     const command = productionCommand(content, agent, input.intent);
     if (command) {
       let reply;
@@ -174,6 +181,7 @@ export function createChatService({ getState, save, workflow, materials }) {
           : controller.signal,
         timeoutMs: 90000,
       });
+      if (closed) return message;
       const reply = addMessage(project, agentId, result.text, "text", undefined, {
         kind: "result",
         scope: "chat",
@@ -208,22 +216,29 @@ export function createChatService({ getState, save, workflow, materials }) {
     close() {
       if (closed) return;
       closed = true;
+      const errors = [];
       for (const [projectId, { controller, runId, pending }] of chatJobs) {
-        const project = getState().projects.find((item) => item.id === projectId);
-        if (project) {
-          const paused = addMessage(
-            project,
-            pending.agentId,
-            "本地服务关闭，本条讨论回复已中断，原消息保留，可重新发送。",
-            "system",
-            undefined,
-            { kind: "paused", scope: "chat", runId },
-          );
-          paused.replyTo = pending.messageId;
-          save();
+        try {
+          const project = getState().projects.find((item) => item.id === projectId);
+          if (project) {
+            const paused = addMessage(
+              project,
+              pending.agentId,
+              "本地服务关闭，本条讨论回复已中断，原消息保留，可重新发送。",
+              "system",
+              undefined,
+              { kind: "paused", scope: "chat", runId },
+            );
+            paused.replyTo = pending.messageId;
+            save();
+          }
+        } catch (error) {
+          errors.push(error);
+        } finally {
+          controller.abort();
         }
-        controller.abort();
       }
+      if (errors.length) throw new AggregateError(errors, "讨论检查点保存失败。");
     },
   };
 }

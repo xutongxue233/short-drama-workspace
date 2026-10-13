@@ -352,6 +352,9 @@ export function Showcase() {
             </DialogBody>
             <DialogFooter>
               <DialogClose>取消</DialogClose>
+              <DialogClose onConfirmClose={() => setDialog(false)}>
+                确认后返回预览
+              </DialogClose>
               <Button variant="primary" type="submit">
                 完成预览
               </Button>

@@ -122,10 +122,10 @@ export function EpisodeArchiveDialog({
                 查看工作记录
               </Button>
               {!selected && (
-                <Button size="sm" variant="secondary" onClick={onWorkflow}>
+                <DialogClose size="sm" variant="secondary" onConfirmClose={onWorkflow}>
                   进入本集流程
                   <ArrowRight size={14} />
-                </Button>
+                </DialogClose>
               )}
             </div>
             {selected ? (

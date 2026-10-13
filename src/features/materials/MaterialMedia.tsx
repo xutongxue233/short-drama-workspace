@@ -1,5 +1,6 @@
 import { ImageOff, Image, Film, Music2, CloudDownload } from "lucide-react";
 import { useState } from "react";
+import { Button } from "../../ui";
 import type { Material } from "../../types";
 import { materialPreviewUrl, materialTypeNames } from "./materialUtils";
 
@@ -41,6 +42,11 @@ export function MaterialMedia({
             ? "预览不可用"
             : "素材暂时无法加载。远程链接可能已失效，或本地文件已被移动。"}
         </span>
+        {!thumbnail && url && (
+          <Button size="sm" onClick={() => setFailedUrl("")}>
+            重试加载 {material.name}
+          </Button>
+        )}
       </div>
     );
   const onError = () => setFailedUrl(url);

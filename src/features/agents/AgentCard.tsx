@@ -73,6 +73,7 @@ export function AgentCard({
           variant="ghost"
           size="sm"
           aria-label={`配置 ${agent.name}`}
+          disabled={busy}
           onClick={onEdit}
         >
           <Pencil size={14} />

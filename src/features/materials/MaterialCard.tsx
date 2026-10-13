@@ -90,8 +90,9 @@ export function MaterialCard({
           </time>
           <span>{formatMaterialBytes(material.bytes)}</span>
         </div>
-        {material.status === "failed" && (
-          <p className="material-card-error" title={material.error}>
+        {(material.status === "failed" ||
+          (material.status === "local" && material.error)) && (
+          <p className="material-card-error" title={material.error} role="status">
             {material.error || "保存失败，可重试下载。"}
           </p>
         )}

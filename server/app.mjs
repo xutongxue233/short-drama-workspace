@@ -10,6 +10,7 @@ import { workflowReadiness } from "./workflow/readiness.mjs";
 import { createChatService } from "./services/chat.mjs";
 import { createMaterialService } from "./services/materials.mjs";
 import { publicProvider } from "./providers/config.mjs";
+import { projectTask } from "./services/project-tasks.mjs";
 import { mountProjectsRoutes } from "./routes/projects.mjs";
 import { mountWorkflowRoutes } from "./routes/workflow.mjs";
 import { mountMemoryRoutes } from "./routes/memory.mjs";
@@ -57,6 +58,7 @@ export function createApp({
       projects: state.projects.map((project) => ({
         ...project,
         chatPending: chat.getPending(project.id),
+        backgroundTask: projectTask(project),
         workflowIssues: workflowReadiness(project, state),
       })),
       providers: state.providers.map(publicProvider),
@@ -94,11 +96,16 @@ export function createApp({
     close() {
       if (closed) return;
       closed = true;
-      chat.close();
-      workflow.close();
-      providerRoutes.close();
-      materials.close();
-      store.close();
+      const errors = [];
+      for (const resource of [chat, workflow, providerRoutes, materials, store]) {
+        try {
+          resource.close();
+        } catch (error) {
+          errors.push(error);
+        }
+      }
+      if (errors.length)
+        throw new AggregateError(errors, "服务已关闭，但部分检查点未能保存。");
     },
   };
 }

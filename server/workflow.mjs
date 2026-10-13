@@ -1,5 +1,5 @@
 import { generate } from "./providers/generate.mjs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { now, uid } from "./seed.mjs";
 import { HttpError } from "./http/errors.mjs";
 import { redact } from "./providers/config.mjs";
@@ -37,6 +37,8 @@ import {
 } from "./workflow/character-checkpoint.mjs";
 import { createApproval, TASKS, OUTPUT_GUIDELINES } from "./workflow/templates.mjs";
 import { workflowEvent, approvalEvent, recordNodeStart } from "./workflow/events.mjs";
+import { projectTask } from "./services/project-tasks.mjs";
+import { snapshotState, stateTransaction } from "./state-transaction.mjs";
 export { HttpError } from "./http/errors.mjs";
 export {
   addMessage,
@@ -47,6 +49,16 @@ export {
 
 export function createWorkflow({ getState, save, materials }) {
   const jobs = new Map();
+  function failureDetail(error) {
+    let detail = String(error?.message || "本地检查点写入失败");
+    for (const provider of getState().providers)
+      detail = redact(detail, provider.apiKey);
+    return detail.slice(0, 600);
+  }
+  function persistenceFailure(project, error) {
+    project.persistenceError = `本地检查点保存失败：${failureDetail(error)}。本次产物仍保留在内存中，请修复存储后重试保存，暂勿关闭服务或重复生成。`;
+    addMessage(project, "system", project.persistenceError, "error");
+  }
   const mediaReferences = (references, kind) =>
     materials ? materials.references(references, kind) : references;
 
@@ -61,6 +73,7 @@ export function createWorkflow({ getState, save, materials }) {
     name,
     references = [],
     videoShot,
+    captureId,
   ) {
     if (!materials || !result.url) return result;
     const material = await materials.capture(
@@ -76,6 +89,7 @@ export function createWorkflow({ getState, save, materials }) {
         referenceAssets: references,
         ...(result.metadata?.jobId ? { providerTaskId: result.metadata.jobId } : {}),
         ...(videoShot ? { videoShot } : {}),
+        ...(captureId ? { captureId } : {}),
       },
       signal,
     );
@@ -140,6 +154,16 @@ export function createWorkflow({ getState, save, materials }) {
       delete node.error;
       delete node.startedAt;
       delete node.completedAt;
+      if (node.characterGeneration?.images?.length)
+        node.imageTaskHistory = [
+          ...(node.imageTaskHistory || []),
+          ...node.characterGeneration.images.map((image) => ({
+            ...image,
+            generationId: node.characterGeneration.id,
+            archivedAt: now(),
+            reason: "creative-input-changed",
+          })),
+        ];
       delete node.characterGeneration;
       delete node.videoShotId;
     }
@@ -442,32 +466,73 @@ export function createWorkflow({ getState, save, materials }) {
           references: characterReferences,
           compact: provider.protocol === "minimax",
         });
-        const result = await generate({
-          onDispatch() {
-            onStart();
-            addMessage(
-              project,
-              agent.id,
-              `正在生成「${character.name}」的角色参考图。`,
-              "system",
-              node.id,
-              workflowEvent(project, node, "progress", { phase: "character-image" }),
-            );
-            save();
-          },
-          provider,
-          prompt: characterPrompt,
-          system: agent.systemPrompt,
-          model: agent.model || provider.model,
-          kind: provider.kind,
-          signal,
-          references: await mediaReferences(characterReferences, provider.kind),
-        });
-        if (!result.url)
+        let image = checkpoint.images?.find(
+          (item) =>
+            item.name === character.name &&
+            item.content === character.content &&
+            item.status !== "failed",
+        );
+        if (image && !image.result?.url)
           throw new Error(
-            `生图接口没有为「${character.name}」返回可用媒体 URL，请检查接口返回格式。`,
+            `「${character.name}」的图片请求已派发但结果尚未保存，不能自动重复生图。请先核查供应商；如确认需要重新生成，在节点详情中明确归档该不确定请求，之后重试可能再次计费。`,
           );
-        // Retain every successful provider result before an abort or later role failure.
+        if (!image) {
+          let result;
+          try {
+            result = await generate({
+              onDispatch() {
+                onStart();
+                addMessage(
+                  project,
+                  agent.id,
+                  `正在生成「${character.name}」的角色参考图。`,
+                  "system",
+                  node.id,
+                  workflowEvent(project, node, "progress", {
+                    phase: "character-image",
+                  }),
+                );
+                image = {
+                  name: character.name,
+                  content: character.content,
+                  captureId: `material-${randomUUID()}`,
+                  providerId: provider.id,
+                  model: agent.model || provider.model,
+                  status: "submitted",
+                  createdAt: now(),
+                };
+                (checkpoint.images ||= []).push(image);
+                // A crash after dispatch must not turn into another paid POST.
+                save();
+              },
+              provider,
+              prompt: characterPrompt,
+              system: agent.systemPrompt,
+              model: agent.model || provider.model,
+              kind: provider.kind,
+              signal,
+              references: await mediaReferences(characterReferences, provider.kind),
+            });
+            if (!result.url)
+              throw new Error(
+                `生图接口没有为「${character.name}」返回可用媒体 URL，请检查接口返回格式。`,
+              );
+          } catch (error) {
+            // Once dispatched, a timeout, gateway error or invalid response does
+            // not prove the provider stopped work. Keep the submitted record so
+            // a later retry cannot silently incur a second generation charge.
+            if (image)
+              error.message +=
+                " 本次图片请求的远端结果尚不确定；如需重新生成，请在节点详情明确归档该请求。";
+            throw error;
+          }
+          image.result = result;
+          image.status = "generated";
+          // Persist the returned URL and stable capture ID before downloading.
+          // On save failure, retain this result in memory for the next save/retry.
+          save();
+        }
+        const result = image.result;
         const captured = await captureMedia(
           project,
           node,
@@ -477,6 +542,9 @@ export function createWorkflow({ getState, save, materials }) {
           characterPrompt,
           signal,
           `${character.name} · 角色定妆`,
+          characterReferences,
+          undefined,
+          image.captureId,
         );
         signal.throwIfAborted();
         const generated = {
@@ -542,7 +610,7 @@ export function createWorkflow({ getState, save, materials }) {
     const priorTask = videoRequest ? node.videoGeneration : undefined;
     if (priorTask?.taskId && priorTask.requestKey !== requestKey)
       throw new Error(
-        `已有视频任务 ${priorTask.taskId}（镜头 ${priorTask.shotId} / ${priorTask.model}）尚未取回。当前模型、分镜或参考资料已变化，已阻止重新提交以免重复计费；请先恢复原配置取回任务，或在供应商确认处理后再开始新版本。`,
+        `已有视频任务 ${priorTask.taskId}（镜头 ${priorTask.shotId} / ${priorTask.model}）尚未取回。当前模型、分镜或参考资料已变化，已阻止重新提交以免重复计费；可恢复原配置取回任务，或在节点详情中明确归档并放弃取回旧任务后再制作新版本。归档不会取消供应商任务。`,
       );
     let result = await generate({
       onDispatch: onStart,
@@ -749,12 +817,21 @@ export function createWorkflow({ getState, save, materials }) {
         project.running = false;
         project.updatedAt = now();
         jobs.delete(project.id);
-        save();
+        try {
+          save();
+        } catch (error) {
+          persistenceFailure(project, error);
+        }
       }
     }
   }
 
   function start(project, { nodeId, shotId } = {}) {
+    if (projectTask(project))
+      throw new HttpError(
+        409,
+        "此项目已有模型测试或其他任务，请等待完成后再开始制作。",
+      );
     if (project.running || jobs.has(project.id))
       throw new HttpError(409, "项目正在运行，请等待或先暂停。");
     if (!project.chapters.length)
@@ -793,33 +870,48 @@ export function createWorkflow({ getState, save, materials }) {
           `已有镜头 ${target.videoGeneration.shotId} 的视频任务 ${target.videoGeneration.taskId} 尚未取回，请先取回该任务再制作其他镜头。`,
         );
     }
-    if (nodeId) {
-      const target = project.nodes.findIndex((node) => node.id === nodeId);
-      if (target < 0) throw new HttpError(404, "工作流节点不存在");
-      if (project.nodes.slice(0, target).some((node) => node.status !== "completed"))
-        throw new HttpError(409, "请先完成并确认前置节点。");
-      const current = project.nodes[target];
-      const resumeCharacters =
-        current.id === "characters" &&
-        ["failed", "pending"].includes(current.status) &&
-        current.characterGeneration;
-      const resumeVideo = current.id === "video" && current.videoGeneration?.taskId;
-      invalidateFrom(project, resumeCharacters || resumeVideo ? target + 1 : target);
-    }
-    if (project.nodes.every((node) => node.status === "completed"))
-      throw new HttpError(409, "本轮工作流已完成，可选择一个节点重新制作。");
-    const next = project.nodes.find((node) => node.status !== "completed");
-    if (next.status === "failed") {
-      next.status = "pending";
-      delete next.error;
-    }
-    if (next.id === "video" && videoShotId) next.videoShotId = videoShotId;
+    const restore = snapshotState(project);
     const job = { controller: new AbortController(), shotId: videoShotId };
-    project.running = true;
-    jobs.set(project.id, job);
-    compressMemory(project);
-    save();
-    job.promise = runLoop(project, job);
+    try {
+      if (nodeId) {
+        const target = project.nodes.findIndex((node) => node.id === nodeId);
+        if (target < 0) throw new HttpError(404, "工作流节点不存在");
+        if (project.nodes.slice(0, target).some((node) => node.status !== "completed"))
+          throw new HttpError(409, "请先完成并确认前置节点。");
+        const current = project.nodes[target];
+        const resumeCharacters =
+          current.id === "characters" &&
+          ["failed", "pending"].includes(current.status) &&
+          current.characterGeneration;
+        const resumeVideo = current.id === "video" && current.videoGeneration?.taskId;
+        invalidateFrom(project, resumeCharacters || resumeVideo ? target + 1 : target);
+      }
+      if (project.nodes.every((node) => node.status === "completed"))
+        throw new HttpError(409, "本轮工作流已完成，可选择一个节点重新制作。");
+      const next = project.nodes.find((node) => node.status !== "completed");
+      if (next.status === "failed") {
+        next.status = "pending";
+        delete next.error;
+      }
+      if (next.id === "video" && videoShotId) next.videoShotId = videoShotId;
+      project.running = true;
+      jobs.set(project.id, job);
+      delete project.persistenceError;
+      compressMemory(project);
+      save();
+    } catch (error) {
+      if (jobs.get(project.id) === job) jobs.delete(project.id);
+      restore();
+      throw error;
+    }
+    // Every detached job owns a rejection handler, including errors from cleanup.
+    job.promise = runLoop(project, job).catch((error) => {
+      if (jobs.get(project.id) === job) {
+        jobs.delete(project.id);
+        project.running = false;
+      }
+      persistenceFailure(project, error);
+    });
     return project;
   }
 
@@ -852,7 +944,100 @@ export function createWorkflow({ getState, save, materials }) {
     return project;
   }
 
-  function approve(project, { approvalId, decision, feedback, value, answers }) {
+  function archiveVideoTask(project, { taskId, acknowledgement }) {
+    if (project.running || jobs.has(project.id) || projectTask(project))
+      throw new HttpError(409, "请先暂停当前制作，再归档旧视频任务。");
+    if (acknowledgement !== "archive-without-cancelling")
+      throw new HttpError(
+        400,
+        "请明确确认：放弃取回旧任务不会取消供应商任务，后续生成可能再次计费。",
+      );
+    const node = project.nodes.find((item) => item.id === "video");
+    if (!node?.videoGeneration?.taskId || node.videoGeneration.taskId !== taskId)
+      throw new HttpError(409, "视频任务已变化，请刷新后核对需要归档的任务 ID。");
+    const restore = snapshotState(project);
+    node.videoTaskHistory = [
+      ...(node.videoTaskHistory || []),
+      { ...node.videoGeneration, status: "abandoned", archivedAt: now() },
+    ];
+    delete node.videoGeneration;
+    delete node.videoShotId;
+    node.status = "pending";
+    delete node.error;
+    addMessage(
+      project,
+      "system",
+      `已归档视频任务 ${taskId} 并放弃在工作台继续取回。任务记录已保留，供应商任务未被取消，仍可能继续运行和计费。尚未提交新生成请求；再次运行视频节点将创建新任务。`,
+      "system",
+      node.id,
+      workflowEvent(project, node, "progress", { phase: "video-task-archived" }),
+    );
+    try {
+      // Archive and release the active task in one durable checkpoint.
+      save();
+    } catch (error) {
+      restore();
+      throw error;
+    }
+    return project;
+  }
+
+  function archiveImageTask(project, { captureId, acknowledgement }) {
+    if (project.running || jobs.has(project.id) || projectTask(project))
+      throw new HttpError(409, "请先暂停并等待当前任务结束，再归档图片请求。");
+    if (acknowledgement !== "new-image-may-charge")
+      throw new HttpError(
+        400,
+        "请明确确认：归档不会取消供应商请求，后续重新生成可能再次计费。",
+      );
+    const node = project.nodes.find((item) => item.id === "characters");
+    const checkpoint = node?.characterGeneration;
+    const image = checkpoint?.images?.find((item) => item.captureId === captureId);
+    if (!image || image.status !== "submitted" || image.result?.url)
+      throw new HttpError(409, "此图片请求已变化或已有可恢复结果，请刷新后再操作。");
+    const restore = snapshotState(project);
+    node.imageTaskHistory = [
+      ...(node.imageTaskHistory || []),
+      { ...image, status: "abandoned", archivedAt: now(), generationId: checkpoint.id },
+    ];
+    checkpoint.images = checkpoint.images.filter((item) => item !== image);
+    node.status = "pending";
+    delete node.error;
+    addMessage(
+      project,
+      "system",
+      `已归档「${image.name}」结果不确定的图片请求 ${captureId}。供应商请求未被取消，仍可能计费；记录已保留，尚未重新生图。再次运行角色节点可能产生新的图片费用。`,
+      "system",
+      node.id,
+      workflowEvent(project, node, "progress", { phase: "image-task-archived" }),
+    );
+    try {
+      save();
+    } catch (error) {
+      restore();
+      throw error;
+    }
+    return project;
+  }
+
+  function approve(project, input) {
+    if (projectTask(project))
+      throw new HttpError(409, "项目已有模型测试或其他任务，请等待结束后再确认。");
+    const shouldStart = stateTransaction(project, () => commitApproval(project, input));
+    if (shouldStart) {
+      try {
+        start(project);
+      } catch (error) {
+        // Approval is already durable. Report the separate startup failure as
+        // part of that successful response so clients do not resubmit approval.
+        project.persistenceError = `本次确认已保存，但后续制作未能启动：${failureDetail(error)}。请修正问题后继续制作，无需重复确认。`;
+        addMessage(project, "system", project.persistenceError, "error");
+      }
+    }
+    return project;
+  }
+
+  function commitApproval(project, { approvalId, decision, feedback, value, answers }) {
     if (project.running) throw new HttpError(409, "当前节点仍在运行，请稍后确认。");
     const approval = project.approval;
     if (!approval || approval.id !== approvalId)
@@ -905,8 +1090,7 @@ export function createWorkflow({ getState, save, materials }) {
       );
       compressMemory(project);
       save();
-      start(project);
-      return project;
+      return true;
     }
     let characterApprovalAssets;
     if (
@@ -986,8 +1170,7 @@ export function createWorkflow({ getState, save, materials }) {
       invalidateFrom(project, project.nodes.indexOf(node));
       compressMemory(project);
       save();
-      start(project);
-      return project;
+      return true;
     }
     if (["script", "character", "storyboard"].includes(approval.kind)) {
       if (approval.kind === "character")
@@ -1032,9 +1215,8 @@ export function createWorkflow({ getState, save, materials }) {
     delete node.characterGeneration;
     project.approval = null;
     compressMemory(project);
-    save();
-    if (project.nodes.some((item) => item.status !== "completed")) start(project);
-    else {
+    const shouldStart = project.nodes.some((item) => item.status !== "completed");
+    if (!shouldStart) {
       addMessage(
         project,
         "producer",
@@ -1043,9 +1225,9 @@ export function createWorkflow({ getState, save, materials }) {
         node.id,
         approvalEvent(project, node, "completed", approval),
       );
-      save();
     }
-    return project;
+    save();
+    return shouldStart;
   }
 
   function reviewEditedAsset(project, asset, previous = asset) {
@@ -1114,14 +1296,25 @@ export function createWorkflow({ getState, save, materials }) {
   return {
     start,
     stop,
+    archiveVideoTask,
+    archiveImageTask,
     approve,
     invite,
     invalidateFrom,
     reviewEditedAsset,
     jobs,
     close: () => {
-      for (const project of getState().projects)
-        if (jobs.has(project.id)) stop(project);
+      const failures = [];
+      for (const project of getState().projects) {
+        if (!jobs.has(project.id)) continue;
+        try {
+          stop(project);
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      if (failures.length)
+        throw new AggregateError(failures, "工作流关闭检查点保存失败");
     },
   };
 }

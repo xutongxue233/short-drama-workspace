@@ -52,6 +52,11 @@ export function ProjectWorkspace({
         onInvite={onInvite}
         onEpisodes={onEpisodes}
       />
+      {project.backgroundTask === "image-test" && (
+        <div className="form-info" role="status">
+          图片测试进行中，完成后可继续创作与编辑。
+        </div>
+      )}
       <div className="project-body">
         <div
           key={`${project.id}-${tab}`}

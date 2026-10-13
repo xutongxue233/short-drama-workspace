@@ -1,20 +1,30 @@
 import { useState } from "react";
 import type { Asset } from "../../../types";
+import { Button } from "../../../ui";
 
 export function AssetMedia({
   item,
   onLoadStateChange,
 }: {
   item: Asset;
-  onLoadStateChange?: (state: "loaded" | "failed") => void;
+  onLoadStateChange?: (state: "loading" | "loaded" | "failed") => void;
 }) {
   const [failedUrl, setFailedUrl] = useState("");
   if (!item.url) return null;
   if (failedUrl === item.url)
     return (
-      <p className="error-box" role="status">
-        素材暂时无法加载，请检查素材地址或网络连接。
-      </p>
+      <div className="error-box" role="status">
+        <p>素材暂时无法加载，请检查素材地址或网络连接。</p>
+        <Button
+          size="sm"
+          onClick={() => {
+            setFailedUrl("");
+            onLoadStateChange?.("loading");
+          }}
+        >
+          重试加载 {item.name}
+        </Button>
+      </div>
     );
   const fail = () => {
     setFailedUrl(item.url || "");

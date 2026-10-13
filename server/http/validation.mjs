@@ -1,4 +1,5 @@
 import { HttpError } from "./errors.mjs";
+import { projectTask } from "../services/project-tasks.mjs";
 
 export function textInput(value, field, { max = 2000, required = false } = {}) {
   if (typeof value !== "string") throw new HttpError(400, `${field}必须是文本`);
@@ -29,6 +30,8 @@ export function bodyObject(req) {
 }
 
 export function projectGuard(project) {
+  if (projectTask(project))
+    throw new HttpError(409, "项目正在执行图片测试，请等待完成后再操作。");
   if (project.running)
     throw new HttpError(409, "请先暂停项目，再修改原文、项目配置或资产。");
 }

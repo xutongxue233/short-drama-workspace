@@ -31,7 +31,8 @@ export function SourceDialog({
   const close = () => {
     if (!saving && !reading) onClose();
   };
-  const importDisabled = saving || reading || project.running;
+  const importDisabled =
+    saving || reading || project.running || Boolean(project.backgroundTask);
   async function readFile(file: File) {
     if (input.current) input.current.value = "";
     if (file.size > 2 * 1024 * 1024) {
@@ -139,6 +140,9 @@ export function SourceDialog({
               <Pause size={15} />
               项目正在制作，请先暂停制作再导入新章节。
             </p>
+          )}
+          {project.backgroundTask && (
+            <p className="form-info">图片测试进行中，请等待测试完成再导入新章节。</p>
           )}
           <Field htmlFor="studio-field-6" label="章节或片段标题" optional>
             <Input

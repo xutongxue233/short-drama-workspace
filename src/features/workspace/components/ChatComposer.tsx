@@ -21,6 +21,27 @@ import type { Agent, Project } from "../../../types";
 import { IconButton, Select } from "../../../ui";
 
 const draftSentEvent = "yingxu:chat-draft-sent";
+type ChatIntent = "auto" | "discussion";
+
+function readDraft(projectId: string): { text: string; intent: ChatIntent } {
+  try {
+    const saved = sessionStorage.getItem(`yingxu-draft-${projectId}`) || "";
+    try {
+      const draft = JSON.parse(saved);
+      if (
+        draft?.version === 1 &&
+        typeof draft.text === "string" &&
+        ["auto", "discussion"].includes(draft.intent)
+      )
+        return { text: draft.text, intent: draft.intent };
+    } catch {
+      // Earlier releases stored just the message text.
+    }
+    return { text: saved, intent: "auto" };
+  } catch {
+    return { text: "", intent: "auto" };
+  }
+}
 
 export function ChatComposer({
   project,
@@ -41,17 +62,12 @@ export function ChatComposer({
   onFollowLatest: () => void;
   onSendingChange?: (agentId: string | null) => void;
 }) {
-  const [text, setText] = useState(() => {
-    try {
-      return sessionStorage.getItem(`yingxu-draft-${project.id}`) || "";
-    } catch {
-      return "";
-    }
-  });
+  const [savedDraft] = useState(() => readDraft(project.id));
+  const [text, setText] = useState(savedDraft.text);
   const [mentionQuery, setMentionQuery] = useState<MentionQuery | null>(null);
   const [activeOption, setActiveOption] = useState(0);
   const [sending, setSending] = useState(false);
-  const [intent, setIntent] = useState<"auto" | "discussion">("auto");
+  const [intent, setIntent] = useState<ChatIntent>(savedDraft.intent);
   const sendingRef = useRef(false);
   const composing = useRef(false);
   const composer = useRef<HTMLTextAreaElement>(null);
@@ -103,22 +119,27 @@ export function ChatComposer({
   }, []);
   useEffect(() => {
     try {
-      if (text) sessionStorage.setItem(`yingxu-draft-${project.id}`, text);
+      if (text || intent !== "auto")
+        sessionStorage.setItem(
+          `yingxu-draft-${project.id}`,
+          JSON.stringify({ version: 1, text, intent }),
+        );
       else sessionStorage.removeItem(`yingxu-draft-${project.id}`);
     } catch {
       /* Draft persistence is optional when browser storage is unavailable. */
     }
-  }, [project.id, text]);
+  }, [project.id, text, intent]);
   useEffect(() => {
     const clearSentDraft = (event: Event) => {
-      const detail = (event as CustomEvent<{ projectId: string; draft: string }>)
-        .detail;
-      if (detail?.projectId === project.id)
+      const detail = (
+        event as CustomEvent<{ projectId: string; draft: string; intent: ChatIntent }>
+      ).detail;
+      if (detail?.projectId === project.id && detail.intent === intent)
         setText((current) => (current === detail.draft ? "" : current));
     };
     window.addEventListener(draftSentEvent, clearSentDraft);
     return () => window.removeEventListener(draftSentEvent, clearSentDraft);
-  }, [project.id]);
+  }, [project.id, intent]);
   useEffect(() => {
     if (!menuOpen) return;
     const outside = (event: PointerEvent) => {
@@ -195,12 +216,16 @@ export function ChatComposer({
         // and notify a remounted instance without erasing newer user edits.
         try {
           const key = `yingxu-draft-${project.id}`;
-          if (sessionStorage.getItem(key) === draft) sessionStorage.removeItem(key);
+          const saved = readDraft(project.id);
+          if (saved.text === draft && saved.intent === intent)
+            sessionStorage.removeItem(key);
         } catch {
           /* The in-memory draft still works when storage is unavailable. */
         }
         window.dispatchEvent(
-          new CustomEvent(draftSentEvent, { detail: { projectId: project.id, draft } }),
+          new CustomEvent(draftSentEvent, {
+            detail: { projectId: project.id, draft, intent },
+          }),
         );
       }
     } finally {

@@ -1,4 +1,5 @@
 import { HttpError } from "../http/errors.mjs";
+import { projectTask } from "./project-tasks.mjs";
 import { createEpisode, createNodes, NODE_DEFINITIONS, now } from "../seed.mjs";
 import { addMessage, compressMemory, activeReference } from "../workflow/memory.mjs";
 import {
@@ -9,7 +10,7 @@ import {
 
 /** Finish the production review, archive an immutable copy, and open the next round. */
 export function beginNextEpisode(project, { title = "", chatPending = false } = {}) {
-  if (project.running || chatPending || project.chatPending)
+  if (project.running || chatPending || project.chatPending || projectTask(project))
     throw new HttpError(409, "Agent 仍在工作，请等待当前任务结束后创建下一集。");
   if (
     project.approval ||

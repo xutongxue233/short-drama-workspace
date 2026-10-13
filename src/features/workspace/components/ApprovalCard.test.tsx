@@ -693,6 +693,26 @@ describe("character pilot approval", () => {
     ).toBe(false);
   });
 
+  it("retries a failed preview in place while retaining revision feedback", () => {
+    setup(vi.fn(), pilotProject([pilot]));
+    fireEvent.error(screen.getByRole("img", { name: "林砚" }));
+    fireEvent.click(screen.getByRole("button", { name: "修改样板" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "修改意见" }), {
+      target: { value: "保留这条未提交意见" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "重试加载 林砚" }));
+    expect(screen.getByText(/样板图片加载中/)).toBeTruthy();
+    fireEvent.load(screen.getByRole("img", { name: "林砚" }));
+    expect(
+      (screen.getByRole("textbox", { name: "修改意见" }) as HTMLTextAreaElement).value,
+    ).toBe("保留这条未提交意见");
+    fireEvent.click(screen.getByRole("button", { name: "取消修改" }));
+    expect(
+      (screen.getByRole("button", { name: "采用样板并继续" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+  });
+
   it("keeps the pilot approval image-load gate independent of its enlarged preview", () => {
     const { onAction } = setup(vi.fn(), pilotProject([pilot]));
     const approve = screen.getByRole("button", {

@@ -1,6 +1,7 @@
 import { HttpError } from "../http/errors.mjs";
 import { bodyObject, textInput } from "../http/validation.mjs";
 import { validateBriefAnswers } from "../workflow/brief.mjs";
+import { stateTransaction } from "../state-transaction.mjs";
 
 export function mountWorkflowRoutes(app, { save, findProject, workflow }) {
   app.post("/api/projects/:id/run", (req, res) => {
@@ -20,6 +21,29 @@ export function mountWorkflowRoutes(app, { save, findProject, workflow }) {
   app.post("/api/projects/:id/stop", (req, res) =>
     res.json(workflow.stop(findProject(req.params.id))),
   );
+
+  app.post("/api/projects/:id/video-task/archive", (req, res) => {
+    const input = bodyObject(req);
+    res.json(
+      workflow.archiveVideoTask(findProject(req.params.id), {
+        taskId: textInput(input.taskId, "视频任务 ID", { max: 200, required: true }),
+        acknowledgement: input.acknowledgement,
+      }),
+    );
+  });
+
+  app.post("/api/projects/:id/image-task/archive", (req, res) => {
+    const input = bodyObject(req);
+    res.json(
+      workflow.archiveImageTask(findProject(req.params.id), {
+        captureId: textInput(input.captureId, "图片请求 ID", {
+          max: 100,
+          required: true,
+        }),
+        acknowledgement: input.acknowledgement,
+      }),
+    );
+  });
 
   app.post("/api/projects/:id/approval", (req, res) => {
     const input = bodyObject(req);
@@ -50,11 +74,13 @@ export function mountWorkflowRoutes(app, { save, findProject, workflow }) {
   app.post("/api/projects/:id/invite", (req, res) => {
     const project = findProject(req.params.id),
       input = bodyObject(req);
-    workflow.invite(
-      project,
-      textInput(input.agentId, "Agent 标识", { max: 80, required: true }),
-    );
-    save();
-    res.json(project);
+    stateTransaction(project, () => {
+      workflow.invite(
+        project,
+        textInput(input.agentId, "Agent 标识", { max: 80, required: true }),
+      );
+      save();
+      res.json(project);
+    });
   });
 }

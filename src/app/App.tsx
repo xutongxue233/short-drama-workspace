@@ -59,9 +59,11 @@ export default function App() {
       /* The active project is usable without browser storage. */
     }
   }, [projectId]);
-  const project =
-    state?.projects.find((item) => item.id === projectId) || state?.projects[0];
+  const project = projectId
+    ? state?.projects.find((item) => item.id === projectId)
+    : state?.projects[0];
   const path = project ? `/projects/${project.id}` : "";
+  const projectBusy = busy || Boolean(project?.backgroundTask);
   const chooseProject = (id: string) => {
     setProjectId(id);
     setView("workspace");
@@ -143,7 +145,7 @@ export default function App() {
             onTabChange={setTab}
             inspectorOpen={inspectorOpen}
             onToggleInspector={() => setInspectorOpen(!inspectorOpen)}
-            busy={busy}
+            busy={projectBusy}
             onAction={action}
             onSource={() => setSourceOpen(true)}
             onInvite={() => setInviteOpen(true)}
@@ -152,6 +154,12 @@ export default function App() {
             onEpisodes={() => setEpisodesOpen(true)}
             onActivity={(agentId, nodeId) => setActivity({ agentId, nodeId })}
           />
+        ) : projectId && state.projects.length ? (
+          <div className="empty-state">
+            <h2>所选项目暂未加载</h2>
+            <p>请重新同步工作台，或从项目列表选择要继续的项目。</p>
+            <Button onClick={() => void refresh()}>重新同步</Button>
+          </div>
         ) : (
           <div className="empty-state">
             <Clapperboard size={35} />
@@ -207,6 +215,7 @@ export default function App() {
           readOnly={
             !assetProject ||
             assetProject.running ||
+            Boolean(assetProject.backgroundTask) ||
             activeAsset.tags.includes("历史版本")
           }
           onClose={() => setAsset(null)}

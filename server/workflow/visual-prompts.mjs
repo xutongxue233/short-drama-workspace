@@ -342,17 +342,52 @@ export function buildCharacterImagePrompt(
   );
 }
 
-function firstEpisode(content) {
+function episodeNumber(value) {
+  if (/^\d+$/u.test(value)) return Number(value);
+  const digits = "零一二三四五六七八九";
+  let total = 0;
+  let digit = 0;
+  for (const character of value) {
+    const index = digits.indexOf(character === "两" ? "二" : character);
+    if (index >= 0) digit = index;
+    else {
+      const unit = { 十: 10, 百: 100, 千: 1000 }[character];
+      if (!unit) return NaN;
+      total += (digit || 1) * unit;
+      digit = 0;
+    }
+  }
+  return total + digit;
+}
+
+function currentEpisodeStory(content, number = 1) {
   const body = text(content);
-  const match =
-    /(?:^|\n)(#{1,4})\s*(?:第[一1]集|首集|本集).*?(?:完整剧本|剧本正文)[^\n]*\n/u.exec(
-      body,
+  const headings = [
+    ...body.matchAll(
+      /^(#{1,6})\s*(?:第\s*([\d零一二三四五六七八九十百千两]+)\s*集|(首集|本集))[^\n]*(?:完整剧本|剧本正文)[^\n]*(?:\n|$)/gmu,
+    ),
+  ];
+  const match = headings.find((heading) =>
+    heading[2]
+      ? episodeNumber(heading[2]) === number
+      : heading[3] === "本集" || number === 1,
+  );
+  if (headings.length && !match)
+    throw new Error(
+      `批准剧本中未找到当前第 ${number} 集正文，请核对剧集标题后重新确认。`,
     );
   const section = match ? body.slice(match.index + match[0].length) : body;
   const boundary = match
-    ? new RegExp(`\\n#{1,${match[1].length}}\\s+`, "u").exec(section)
-    : /(?:^|\n)#{1,4}\s*第[二2]集/u.exec(section);
-  return boundary ? section.slice(0, boundary.index) : section;
+    ? new RegExp(`(?:^|\\n)#{1,${match[1].length}}\\s+`, "u").exec(section)
+    : undefined;
+  const story = (boundary ? section.slice(0, boundary.index) : section).trim();
+  if (
+    !story ||
+    (/^#{1,6}\s/u.test(story) &&
+      !story.split("\n").some((line) => line.trim() && !/^\s*#/u.test(line)))
+  )
+    throw new Error("当前已批准剧本的本集正文为空，请补全并确认后再生成分镜。");
+  return story;
 }
 
 function storyExcerpt(content, budget) {
@@ -375,7 +410,10 @@ function storyExcerpt(content, budget) {
 export function buildStoryboardImagePrompt(project) {
   const script = approvedScript(project);
   if (!script) throw new Error("分镜生图需要当前已批准剧本，请先确认剧本后再生成。");
-  const story = firstEpisode(script.content);
+  const story = currentEpisodeStory(
+    script.content,
+    project.currentEpisode?.number || 1,
+  );
   const characters = activeAssets(project, "character").filter((asset) =>
     matches(story, subjectNames(asset)),
   );

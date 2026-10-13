@@ -62,12 +62,20 @@ export interface DialogProps {
 }
 
 const DialogContext = createContext<{
-  requestClose: () => void;
+  requestClose: (afterClose?: () => void) => void;
   busy: boolean;
 } | null>(null);
 
-export const DialogClose = forwardRef<HTMLButtonElement, ButtonProps>(
-  function DialogClose({ onClick, disabled, children = "取消", ...props }, ref) {
+export interface DialogCloseProps extends ButtonProps {
+  /** Runs instead of onClose, after the same busy/dirty protection succeeds. */
+  onConfirmClose?: () => void;
+}
+
+export const DialogClose = forwardRef<HTMLButtonElement, DialogCloseProps>(
+  function DialogClose(
+    { onClick, onConfirmClose, disabled, children = "取消", ...props },
+    ref,
+  ) {
     const dialog = useContext(DialogContext);
     return (
       <Button
@@ -76,7 +84,7 @@ export const DialogClose = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || dialog?.busy}
         onClick={(event) => {
           onClick?.(event);
-          if (!event.defaultPrevented) dialog?.requestClose();
+          if (!event.defaultPrevented) dialog?.requestClose(onConfirmClose);
         }}
       >
         {children}
@@ -103,13 +111,15 @@ export function Dialog({
   const continueButtonRef = useRef<HTMLButtonElement>(null);
   const confirmationRestore = useRef<HTMLElement | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
-  const requestClose = () => {
+  const closeAction = useRef(onClose);
+  const requestClose = (afterClose = onClose) => {
     if (busy) return;
+    closeAction.current = afterClose;
     if (dirty) {
       confirmationRestore.current =
         document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setConfirmClose(true);
-    } else onClose();
+    } else afterClose();
   };
   const callbacks = useRef({
     onClose,
@@ -322,7 +332,7 @@ export function Dialog({
           <IconButton
             label="关闭弹窗"
             disabled={busy || confirmClose}
-            onClick={requestClose}
+            onClick={() => requestClose()}
             className="ui-dialog-close"
           >
             <svg
@@ -353,7 +363,12 @@ export function Dialog({
               >
                 继续编辑
               </Button>
-              <Button size="sm" variant="danger" disabled={busy} onClick={onClose}>
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={busy}
+                onClick={() => closeAction.current()}
+              >
                 放弃修改
               </Button>
             </div>

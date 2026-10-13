@@ -418,3 +418,41 @@ test("six detailed locked character cards remain bounded storyboard summaries", 
   for (const name of names) assert.ok(prompt.includes(`「${name}」`));
   assert.ok(prompt.length <= VISUAL_PROMPT_BUDGETS.storyboard);
 });
+
+test("storyboards use the actual current episode in Chinese and numeric script headings", () => {
+  for (const title of ["第二集", "第2集", "第 2 集"]) {
+    const { project } = fixture(
+      `## 第一集完整剧本\nFIRST_EPISODE_ONLY\n## ${title}完整剧本\n### 场1\n长生在地下实验室找到 QUARTZ_SECOND。\n## 第三集完整剧本\nFUTURE_EPISODE_ONLY`,
+    );
+    project.currentEpisode.number = 2;
+    project.assets.push({
+      id: "hero",
+      name: "长生",
+      type: "character",
+      version: 1,
+      locked: true,
+      tags: [],
+      content: "蓝衣长生 LOCKED_HERO",
+    });
+    const prompt = buildStoryboardImagePrompt(project);
+    assert.match(prompt, /地下实验室找到 QUARTZ_SECOND/);
+    assert.match(prompt, /LOCKED_HERO/);
+    assert.doesNotMatch(prompt, /FIRST_EPISODE_ONLY|FUTURE_EPISODE_ONLY/);
+  }
+});
+
+test("empty or mismatched current episode script bodies cannot produce image prompts", () => {
+  for (const content of [
+    "",
+    "## 第二集完整剧本",
+    "## 第二集完整剧本\n## 原文与改编对照\nNOT_STORY",
+    "## 第一集完整剧本\nWRONG_EPISODE",
+  ]) {
+    const { project } = fixture(content);
+    project.currentEpisode.number = 2;
+    assert.throws(
+      () => buildStoryboardImagePrompt(project),
+      /正文为空|未找到当前第 2 集正文/,
+    );
+  }
+});

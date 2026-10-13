@@ -13,10 +13,23 @@ export function useWorkspaceState() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revision = useRef(0);
-  const pendingSnapshots = useRef(new Set<AbortController>());
+  const lifecycle = useRef(0);
+  const mounted = useRef(true);
+  const pendingSnapshot = useRef<{
+    controller: AbortController;
+    promise: Promise<void>;
+  } | null>(null);
+  const synchronizations = useRef(
+    new Set<{
+      revision: number;
+      resolve: () => void;
+      reject: (error: Error) => void;
+    }>(),
+  );
   const actionPending = useRef(false);
   const notify = useCallback(
     (message: string, kind: "success" | "error" = "success") => {
+      if (!mounted.current) return;
       setToast({ message, kind });
       if (toastTimer.current) clearTimeout(toastTimer.current);
       toastTimer.current = setTimeout(
@@ -26,44 +39,81 @@ export function useWorkspaceState() {
     },
     [],
   );
-  const refresh = useCallback(async () => {
-    const seq = ++revision.current;
+  const refresh = useCallback(function refreshSnapshot(): Promise<void> {
+    if (!mounted.current) return Promise.resolve();
+    if (pendingSnapshot.current) return pendingSnapshot.current.promise;
+    const seq = revision.current;
+    const currentLifecycle = lifecycle.current;
     const controller = new AbortController();
-    pendingSnapshots.current.add(controller);
-    try {
-      const next = await request<WorkspaceState>("/state", undefined, "GET", {
-        signal: controller.signal,
-      });
-      if (seq === revision.current) {
-        setState(next);
-        setError("");
+    const isCurrent = () => mounted.current && currentLifecycle === lifecycle.current;
+    const promise = (async () => {
+      try {
+        const next = await request<WorkspaceState>("/state", undefined, "GET", {
+          signal: controller.signal,
+        });
+        if (isCurrent() && seq === revision.current) {
+          setState(next);
+          setError("");
+          for (const pending of synchronizations.current) {
+            if (pending.revision <= seq) {
+              synchronizations.current.delete(pending);
+              pending.resolve();
+            }
+          }
+        }
+      } catch (error) {
+        if (isCurrent())
+          setError(
+            `${synchronizations.current.size ? "修改已保存，正在重新同步，请勿重复提交。" : ""}${(error as Error).message}`,
+          );
+      } finally {
+        if (pendingSnapshot.current?.controller === controller)
+          pendingSnapshot.current = null;
+        // A write committed during this read. Start a fresh read before releasing
+        // any caller that depends on the committed state; timers share this read.
+        if (isCurrent() && seq !== revision.current) void refreshSnapshot();
       }
-    } catch (error) {
-      if (seq === revision.current) setError((error as Error).message);
-    } finally {
-      pendingSnapshots.current.delete(controller);
-    }
+    })();
+    pendingSnapshot.current = { controller, promise };
+    return promise;
   }, []);
   useEffect(() => {
-    const controllers = pendingSnapshots.current;
+    mounted.current = true;
+    const waiting = synchronizations.current;
     void refresh();
     const interval = setInterval(() => void refresh(), WORKSPACE_POLL_INTERVAL_MS);
     return () => {
       clearInterval(interval);
+      mounted.current = false;
+      lifecycle.current += 1;
       revision.current += 1;
-      controllers.forEach((controller) => controller.abort());
-      controllers.clear();
+      pendingSnapshot.current?.controller.abort();
+      pendingSnapshot.current = null;
+      for (const pending of waiting)
+        pending.reject(new DOMException("工作台已关闭", "AbortError"));
+      waiting.clear();
       if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, [refresh]);
   const mutate = useCallback(
     async (path: string, body?: unknown, method = "POST") => {
+      const currentLifecycle = lifecycle.current;
       try {
         const result = await request(path, body, method);
-        await refresh();
+        if (!mounted.current || currentLifecycle !== lifecycle.current)
+          throw new DOMException("工作台已关闭", "AbortError");
+        const seq = ++revision.current;
+        const synchronized = new Promise<void>((resolve, reject) => {
+          synchronizations.current.add({ revision: seq, resolve, reject });
+        });
+        void refresh();
+        // A failed GET is retried by polling, never by repeating the committed
+        // write. Keep dependent forms busy until a fresh snapshot is applied.
+        await synchronized;
         return result;
       } catch (error) {
-        notify((error as Error).message, "error");
+        if (mounted.current && currentLifecycle === lifecycle.current)
+          notify((error as Error).message, "error");
         throw error;
       }
     },
@@ -72,17 +122,18 @@ export function useWorkspaceState() {
   const action: Action = useCallback(
     async (path, body, success, method = "POST") => {
       if (actionPending.current) return false;
+      const currentLifecycle = lifecycle.current;
       actionPending.current = true;
       setBusy(true);
       try {
         await mutate(path, body === undefined && method === "POST" ? {} : body, method);
-        if (success) notify(success);
+        if (success && currentLifecycle === lifecycle.current) notify(success);
         return true;
       } catch {
         return false;
       } finally {
         actionPending.current = false;
-        setBusy(false);
+        if (mounted.current && currentLifecycle === lifecycle.current) setBusy(false);
       }
     },
     [mutate, notify],

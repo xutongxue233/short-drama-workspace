@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createProject } from "./seed.mjs";
+import { addMessage, remember } from "./workflow/memory.mjs";
 import {
   buildCharacterPlanningPrompt,
   characterDesignFeedback,
@@ -216,4 +217,36 @@ test("another workflow node's revision cannot leak into character design through
     content: "请返修「剧本改编」：母亲的服装改成鲜红色，让剧情更恐怖。",
   });
   assert.equal(characterDesignFeedback(project), "");
+});
+
+test("returning to an earlier design follows the original messages rather than deduplicated decisions", () => {
+  const project = fixture();
+  for (const content of ["服装改成红色。", "服装改成蓝色。", "服装改成红色。"]) {
+    addMessage(project, "user", content);
+    remember(project, `用户反馈（交给角色设计）：${content}`);
+  }
+  assert.equal(project.memory.decisions.length, 2);
+  const feedback = characterDesignFeedback(project);
+  assert.ok(feedback.indexOf("蓝色") < feedback.indexOf("红色"));
+  assert.ok(feedback.endsWith("服装改成红色。"));
+  assert.equal(feedback.split("服装改成红色。").length - 1, 1);
+  assert.ok(buildCharacterPlanningPrompt(project).includes(feedback));
+});
+
+test("latest approval notes keep their event order and role-specific scene classification", () => {
+  const project = fixture();
+  addMessage(project, "user", "服装改成蓝色。");
+  remember(project, "用户反馈（交给角色设计）：服装改成蓝色。");
+  remember(
+    project,
+    "用户对「角色定妆」的确认备注：服装改成红色，现形镜头使用逆光剪影。",
+  );
+  addMessage(
+    project,
+    "user",
+    "已确认「角色定妆」。服装改成红色，现形镜头使用逆光剪影。",
+  );
+  const feedback = characterDesignFeedback(project);
+  assert.ok(feedback.indexOf("蓝色") < feedback.indexOf("红色"));
+  assert.match(feedback, /仅镜头状态要求：现形镜头使用逆光剪影/);
 });

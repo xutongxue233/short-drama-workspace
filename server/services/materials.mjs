@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { unlinkSync } from "node:fs";
 import { mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { HttpError } from "../http/errors.mjs";
+import { snapshotState, stateTransaction } from "../state-transaction.mjs";
 
 const ID = /^material-[0-9a-f-]{36}$/;
 const LOCAL = /^\/api\/media\/(material-[0-9a-f-]{36})\/file(?:\?download=1)?$/;
@@ -151,21 +152,26 @@ export function createMaterialService({
     }
   }
 
-  async function download(project, material, callerSignal) {
+  async function download(project, material, callerSignal, reservedJob) {
     if (closed) throw new HttpError(503, "素材服务正在关闭。");
-    if (jobs.has(material.id)) return jobs.get(material.id).promise;
-    const controller = new AbortController();
+    if (jobs.has(material.id) && jobs.get(material.id) !== reservedJob)
+      return jobs.get(material.id).promise;
+    const controller = reservedJob?.controller ?? new AbortController();
     const signal = AbortSignal.any([
       controller.signal,
       AbortSignal.timeout(timeoutMs),
       ...(callerSignal ? [callerSignal] : []),
     ]);
-    material.status = "downloading";
-    delete material.error;
-    persist();
+    stateTransaction(material, () => {
+      material.status = "downloading";
+      delete material.error;
+      persist();
+    });
     const temporary = resolve(directory, `${material.id}.${randomUUID()}.part`);
     const promise = (async () => {
       let handle;
+      let localSaved = false;
+      const originalSource = material.sourceUrl;
       try {
         signal.throwIfAborted();
         const maximum = limits[material.type] || LIMITS[material.type];
@@ -208,6 +214,7 @@ export function createMaterialService({
         signal.throwIfAborted();
         const destination = pathFor({ ...material, mimeType });
         await rename(temporary, destination);
+        localSaved = true;
         if (closed) return material;
         Object.assign(material, {
           status: "local",
@@ -222,6 +229,13 @@ export function createMaterialService({
           material.sourceUrl = `data:${mimeType};base64`;
         persist();
       } catch (error) {
+        if (localSaved && !closed) {
+          // The durable binary is already complete. Never downgrade it to a
+          // failed remote download or discard its only retryable source.
+          material.sourceUrl = originalSource;
+          material.error = "本地文件已保存，但素材记录保存失败，请重试保存。";
+          throw error;
+        }
         if (!closed) {
           material.status = "failed";
           material.url =
@@ -243,7 +257,7 @@ export function createMaterialService({
       }
       return material;
     })();
-    jobs.set(material.id, { promise, controller, material });
+    if (!reservedJob) jobs.set(material.id, { promise, controller, material });
     return promise;
   }
 
@@ -261,12 +275,28 @@ export function createMaterialService({
         sourceError = error.message;
       }
     }
+    if (input.captureId !== undefined && !ID.test(input.captureId))
+      throw new HttpError(400, "素材恢复标识无效。");
+    const sourceHash = createHash("sha256").update(sourceUrl).digest("hex");
+    const existing = input.captureId && find(input.captureId);
+    if (existing) {
+      if (
+        existing.project !== project ||
+        existing.material.type !== input.type ||
+        (existing.material.sourceHash
+          ? existing.material.sourceHash !== sourceHash
+          : existing.material.sourceUrl !== sourceUrl)
+      )
+        throw new HttpError(409, "素材恢复标识已关联其他生成结果。");
+      return retry(project, existing.material.id, signal);
+    }
     const material = {
-      id: `material-${randomUUID()}`,
+      id: input.captureId ?? `material-${randomUUID()}`,
       projectId: project.id,
       name: input.name || "未命名素材",
       type: input.type,
       sourceUrl,
+      sourceHash,
       url: sourceUrl,
       status: sourceError ? "failed" : "remote",
       createdAt: new Date().toISOString(),
@@ -297,8 +327,10 @@ export function createMaterialService({
           material.videoShot[key] = input.videoShot[key];
     }
     if (sourceError) material.error = sourceError;
-    (project.materials ||= []).push(material);
-    persist();
+    stateTransaction(project, () => {
+      (project.materials ||= []).push(material);
+      persist();
+    });
     return sourceError ? material : download(project, material, signal);
   }
 
@@ -360,18 +392,73 @@ export function createMaterialService({
     );
   }
 
-  async function retry(project, materialId) {
+  async function retry(project, materialId, signal) {
+    if (closed) throw new HttpError(503, "素材服务正在关闭。");
     const material = project.materials?.find((item) => item.id === materialId);
     if (!material) throw new HttpError(404, "素材不存在。");
-    if (material.status === "local") {
+    if (jobs.has(materialId)) return jobs.get(materialId).promise;
+    // Reserve before the first filesystem await: deletion and shutdown must
+    // observe recovery as an active job, just like a remote download.
+    const controller = new AbortController();
+    const job = { controller, material };
+    jobs.set(materialId, job);
+    const recoverySignal = signal
+      ? AbortSignal.any([signal, controller.signal])
+      : controller.signal;
+    job.promise = recover(project, material, recoverySignal, job).finally(() => {
+      if (jobs.get(materialId) === job) jobs.delete(materialId);
+    });
+    return job.promise;
+  }
+
+  async function recover(project, material, signal, job) {
+    // A crash or failed SQLite save can leave a complete binary with an older
+    // remote/downloading record. Recover the validated file before any fetch.
+    for (const [mimeType, extension] of Object.entries(EXTENSIONS)) {
+      if (!mimeType.startsWith(`${material.type}/`)) continue;
+      const path = resolve(directory, `${material.id}.${extension}`);
+      let bytes;
       try {
-        await file(material.id);
-        return material;
+        const info = await stat(path);
+        if (!info.isFile()) continue;
+        const handle = await open(path, "r");
+        try {
+          const signature = Buffer.alloc(64);
+          const { bytesRead } = await handle.read(signature, 0, 64, 0);
+          if (mediaFormat(signature.subarray(0, bytesRead), material.type) !== mimeType)
+            continue;
+        } finally {
+          await handle.close();
+        }
+        bytes = info.size;
       } catch (error) {
-        if (error.status !== 404) throw error;
+        if (error.code === "ENOENT") continue;
+        throw error;
       }
+      if (closed) throw new HttpError(503, "素材服务正在关闭。");
+      signal?.throwIfAborted();
+      const source = material.sourceUrl;
+      Object.assign(material, {
+        status: "local",
+        url: localUrl(material.id),
+        mimeType,
+        bytes,
+        savedAt: material.savedAt ?? new Date().toISOString(),
+      });
+      updateAssets(project, material);
+      if (source.startsWith("data:")) material.sourceUrl = `data:${mimeType};base64`;
+      delete material.error;
+      try {
+        persist();
+      } catch (error) {
+        material.sourceUrl = source;
+        material.error = "本地文件已保存，但素材记录保存失败，请重试保存。";
+        throw error;
+      }
+      return material;
     }
-    return download(project, material);
+    signal.throwIfAborted();
+    return download(project, material, signal, job);
   }
 
   async function importExisting(project) {
@@ -444,11 +531,7 @@ export function createMaterialService({
     const path = material.mimeType ? pathFor(material) : undefined;
     if (path && dirname(path) !== directory)
       throw new HttpError(400, "素材文件路径无效。");
-    const snapshot = structuredClone(project);
-    const restore = () => {
-      for (const key of Object.keys(project)) delete project[key];
-      Object.assign(project, snapshot);
-    };
+    const restore = snapshotState(project);
     try {
       const removedIds = new Set(assets.map((asset) => asset.id));
       project.assets = (project.assets || []).filter(
@@ -487,9 +570,12 @@ export function createMaterialService({
         material.status = "failed";
         material.error = "本地服务关闭导致下载中断，可重试下载。";
       }
-      if (jobs.size) persist();
-      closed = true;
-      for (const { controller } of jobs.values()) controller.abort();
+      try {
+        if (jobs.size) persist();
+      } finally {
+        closed = true;
+        for (const { controller } of jobs.values()) controller.abort();
+      }
     },
   };
 }

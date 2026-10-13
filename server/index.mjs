@@ -18,11 +18,21 @@ export function startServer(options) {
     if (closing) return;
     closing = true;
     // Abort in-flight workflow and chat requests before draining HTTP connections.
-    service.close();
-    server.close();
+    try {
+      service.close();
+    } catch (error) {
+      console.error("[workbench]", error.message);
+      process.exitCode = 1;
+    } finally {
+      server.close();
+    }
   };
   server.once("error", (error) => {
-    service.close();
+    try {
+      service.close();
+    } catch (cleanupError) {
+      console.error("[workbench]", cleanupError.message);
+    }
     console.error("[workbench] Unable to start API:", error.message);
     process.exitCode = 1;
   });

@@ -24,12 +24,43 @@ export function NodeDialog({
   onActivity?: () => void;
 }) {
   const [rerunConfirm, setRerunConfirm] = useState(false);
-  useEffect(() => setRerunConfirm(false), [node.id, project?.id]);
+  const [archiveConfirm, setArchiveConfirm] = useState("");
+  useEffect(() => {
+    setRerunConfirm(false);
+    setArchiveConfirm("");
+  }, [node.id, project?.id]);
   const path = project ? `/projects/${project.id}` : "";
+  const uncertainImages =
+    node.characterGeneration?.images?.filter(
+      (image) => image.status === "submitted" && !image.result?.url,
+    ) ?? [];
+  const taskId = node.videoGeneration?.taskId;
+  const canArchive = Boolean(
+    project && !project.running && !project.backgroundTask && !project.chatPending,
+  );
+  const archiveTask = async (kind: "image" | "video", id: string) => {
+    if (!canArchive || busy) return;
+    const key = `${kind}:${id}`;
+    if (archiveConfirm !== key) {
+      setArchiveConfirm(key);
+      return;
+    }
+    const ok = await onAction(
+      `${path}/${kind}-task/archive`,
+      kind === "video"
+        ? { taskId: id, acknowledgement: "archive-without-cancelling" }
+        : { captureId: id, acknowledgement: "new-image-may-charge" },
+      "旧请求已归档；需要重新制作时，请另行选择重试",
+    );
+    if (ok) setArchiveConfirm("");
+  };
   const canRerun = !!(
     project &&
     node &&
     !project.running &&
+    !project.backgroundTask &&
+    !project.chatPending &&
+    !uncertainImages.length &&
     !project.approval &&
     project.chapters.length &&
     project.nodes
@@ -54,6 +85,51 @@ export function NodeDialog({
         <div className="node-detail">
           <p>{node.description}</p>
           {node.error && <div className="error-box">{node.error}</div>}
+          {taskId && (
+            <div className="form-info">
+              <div>
+                <p>待取回的视频任务：{taskId}</p>
+                <p>
+                  继续制作会尝试取回此任务。若供应商已无法取回，可核查后归档旧任务。
+                </p>
+                {archiveConfirm === `video:${taskId}` && (
+                  <p>
+                    归档将放弃工作台取回此任务并保留台账，不会取消供应商任务，远端可能继续计费。之后重新制作将提交新任务，可能再次计费。
+                  </p>
+                )}
+                <Button
+                  disabled={busy || !canArchive}
+                  onClick={() => void archiveTask("video", taskId)}
+                >
+                  {archiveConfirm === `video:${taskId}`
+                    ? "确认归档旧视频任务"
+                    : "归档旧视频任务"}
+                </Button>
+              </div>
+            </div>
+          )}
+          {uncertainImages.map((image) => (
+            <div className="form-info" key={image.captureId}>
+              <div>
+                <p>图像请求结果待核查：{image.name}</p>
+                <p>请先在供应商侧核查请求结果，再决定是否归档。</p>
+                {archiveConfirm === `image:${image.captureId}` && (
+                  <p>
+                    归档不会取消远端请求；供应商可能已完成并计费。之后重试会重新发起图像请求，可能再次计费。旧记录将保留在台账中。
+                  </p>
+                )}
+                <Button
+                  disabled={busy || !canArchive}
+                  onClick={() => void archiveTask("image", image.captureId)}
+                >
+                  {archiveConfirm === `image:${image.captureId}`
+                    ? "确认归档图像请求"
+                    : "归档图像请求"}{" "}
+                  {image.name}
+                </Button>
+              </div>
+            </div>
+          ))}
           {node.output ? (
             <TextContent text={node.output} />
           ) : (

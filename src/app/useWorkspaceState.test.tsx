@@ -26,28 +26,80 @@ afterEach(() => {
 });
 
 describe("workspace state lifecycle", () => {
-  it("keeps a newer server snapshot when an older poll finishes late", async () => {
+  it("serializes a write-after-poll refresh and never applies the pre-write snapshot", async () => {
     const older = deferred<WorkspaceState>();
     const newer = deferred<WorkspaceState>();
-    vi.mocked(request)
-      .mockReturnValueOnce(older.promise)
-      .mockReturnValueOnce(newer.promise);
+    let reads = 0;
+    vi.mocked(request).mockImplementation((path) => {
+      if (path !== "/state") return Promise.resolve({});
+      return ++reads === 1 ? older.promise : newer.promise;
+    });
     const { result } = renderHook(useWorkspaceState);
-    let refreshing!: Promise<void>;
-    act(() => {
-      refreshing = result.current.refresh();
-    });
-    const latestSnapshot = snapshot();
+    let writing!: Promise<unknown>;
     await act(async () => {
-      newer.resolve(latestSnapshot);
-      await refreshing;
+      writing = result.current.mutate("/projects", { name: "new" });
+      await Promise.resolve();
     });
-    expect(result.current.state).toBe(latestSnapshot);
+    expect(reads).toBe(1);
+    const latestSnapshot = snapshot();
     await act(async () => {
       older.resolve(snapshot());
       await older.promise;
     });
+    expect(result.current.state).toBeNull();
+    expect(reads).toBe(2);
+    await act(async () => {
+      newer.resolve(latestSnapshot);
+      await writing;
+    });
     expect(result.current.state).toBe(latestSnapshot);
+  });
+
+  it("applies slow successful polls while coalescing timer and manual refreshes", async () => {
+    const slow = deferred<WorkspaceState>();
+    vi.mocked(request).mockReturnValue(slow.promise);
+    const { result } = renderHook(useWorkspaceState);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+      void result.current.refresh();
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+    const next = snapshot();
+    await act(async () => slow.resolve(next));
+    expect(result.current.state).toBe(next);
+  });
+
+  it("retries synchronization without repeating a committed mutation", async () => {
+    let reads = 0;
+    const updated = snapshot();
+    vi.mocked(request).mockImplementation((path) => {
+      if (path !== "/state") return Promise.resolve({ id: "created" });
+      reads += 1;
+      if (reads === 2) return Promise.reject(new Error("offline"));
+      return Promise.resolve(reads === 1 ? snapshot() : updated);
+    });
+    const { result } = renderHook(useWorkspaceState);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    let completed = false;
+    let writing!: Promise<unknown>;
+    await act(async () => {
+      writing = result.current.mutate("/projects", {}).then(() => {
+        completed = true;
+      });
+    });
+    expect(completed).toBe(false);
+    expect(result.current.error).toContain("修改已保存");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+      await writing;
+    });
+    expect(completed).toBe(true);
+    expect(result.current.state).toBe(updated);
+    expect(
+      vi.mocked(request).mock.calls.filter(([path]) => path === "/projects"),
+    ).toHaveLength(1);
   });
 
   it("cancels pending snapshot requests and removes timers on unmount", () => {

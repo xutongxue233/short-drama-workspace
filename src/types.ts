@@ -60,12 +60,26 @@ export interface WorkflowNode {
   error?: string;
   startedAt?: string;
   completedAt?: string;
+  videoGeneration?: {
+    providerId: string;
+    baseUrl: string;
+    model: string;
+    shotId: string;
+    requestKey: string;
+    taskId: string;
+  };
   characterGeneration?: {
     id: string;
     key: string;
     stage?: "pilot" | "batch";
     outputKind?: "image" | "text";
     pilotName?: string;
+    images?: {
+      captureId: string;
+      name: string;
+      status: string;
+      result?: { url?: string };
+    }[];
     plan: {
       name: string;
       description: string;
@@ -206,6 +220,7 @@ export interface Project {
   memory: Memory;
   approval: Approval | null;
   running: boolean;
+  backgroundTask?: "image-test" | null;
   chatPending?: { agentId: string; messageId: string; startedAt: string } | null;
   productionBrief?: {
     episodeCount: number;

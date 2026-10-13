@@ -2,7 +2,7 @@ import { activeReference } from "./memory.mjs";
 import { briefDescription } from "./brief.mjs";
 import { episodeDecisions, episodeMessages } from "./episode-scope.mjs";
 
-export const CHARACTER_PLANNING_VERSION = "episode-cast-v3-design-feedback";
+export const CHARACTER_PLANNING_VERSION = "episode-cast-v4-feedback-order";
 export const CHARACTER_PLANNING_REPAIRS = 1;
 export const CHARACTER_DESIGN_FEEDBACK_BUDGET = 4000;
 
@@ -33,6 +33,11 @@ function feedbackEntry(value) {
     return ROLE_FEEDBACK.test(revision[1])
       ? { role: true, content: revision[2].trim() }
       : undefined;
+  const confirmation = /^已确认「([^」]+)」[。；]?([\s\S]*)$/u.exec(raw);
+  if (confirmation)
+    return ROLE_FEEDBACK.test(confirmation[1])
+      ? { role: true, content: confirmation[2].trim() }
+      : undefined;
   const content = (routing ? routing[2] : raw).replace(
     /^[@＠][^\s，,:：]+[\s，,:：]*/u,
     "",
@@ -43,15 +48,18 @@ function feedbackEntry(value) {
 /** User design requests are context for a proposal, never evidence of cast identity. */
 export function characterDesignFeedback(project) {
   const entries = [
-    ...episodeMessages(project)
-      .filter((message) => message.agentId === "user" && message.type === "text")
-      .slice(-12)
-      .map((message) => message.content),
+    // Decisions are a deduplicated fallback, not a chronological event log.
+    // Replay the actual user messages last so old decision copies cannot move
+    // a withdrawn design after the user's most recent correction.
     ...episodeDecisions(project)
       .filter(
         (value) => typeof value === "string" && /^用户(?:对「|反馈（)/u.test(value),
       )
       .slice(-12),
+    ...episodeMessages(project)
+      .filter((message) => message.agentId === "user" && message.type === "text")
+      .slice(-12)
+      .map((message) => message.content),
   ]
     .map(feedbackEntry)
     .filter(Boolean);

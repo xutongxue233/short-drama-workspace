@@ -79,9 +79,9 @@ function ApprovalForm({
   const [attempted, setAttempted] = useState(false);
   const [failure, setFailure] = useState("");
   const [previewAssetId, setPreviewAssetId] = useState<string | null>(null);
-  const [imageStates, setImageStates] = useState<Record<string, "loaded" | "failed">>(
-    {},
-  );
+  const [imageStates, setImageStates] = useState<
+    Record<string, "loading" | "loaded" | "failed">
+  >({});
   const locked = busy || submitting || submitted;
   const fields = (approval.fields ?? []).filter((field) => field.id !== "episodeCount");
   const styleField = fields.find((field) => field.id === "style");

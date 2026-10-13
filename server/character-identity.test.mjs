@@ -435,3 +435,45 @@ test("a generic villager title may describe an explicitly individual character",
     /群体称谓/,
   );
 });
+
+test("negative and corrective identity statements cannot bind different people", () => {
+  for (const content of [
+    "来的人不是张三，是李四。",
+    "此人并非张三，就是李四。",
+    "不要把张三叫李四。",
+    "来的人不是父亲李四。",
+  ]) {
+    const name = content.includes("父亲") ? "父亲（李四）" : "张三（李四）";
+    assert.throws(
+      () => resolveCharacterIdentity(name, fixture(content)),
+      /同一人物依据/,
+    );
+  }
+  assert.equal(
+    resolveCharacterIdentity("张三（李四）", fixture("来的人不是王五。张三又名李四。"))
+      .name,
+    "张三",
+  );
+  assert.equal(
+    resolveCharacterIdentity("父亲（李四）", fixture("不是外人，父亲名叫李四。")).name,
+    "李四",
+  );
+});
+
+test("a common title cannot merge a newly evidenced proper name into another locked person", () => {
+  const project = fixture("父亲名叫李四。");
+  project.assets.push(asset("张三（父亲）", "已批准形象：白发黑衣。"));
+  const identity = resolveCharacterIdentity("父亲（李四）", project);
+  assert.equal(identity.name, "李四");
+  assert.equal(identity.source, "novel");
+  assert.ok(!identity.aliases.some((name) => name.includes("张三")));
+  project.assets.push(asset("李四", "已核实称谓：父亲\n已批准形象：黑发蓝衣。"));
+  assert.equal(resolveCharacterIdentity("父亲（李四）", project).name, "李四");
+  assert.throws(() => resolveCharacterIdentity("父亲", project), /多个已锁定人物/);
+});
+
+test("proper-name matching still accepts explicit aliases in a locked card", () => {
+  const project = fixture("李四来到院中。");
+  project.assets.push(asset("张三（父亲）", "张三又名李四。"));
+  assert.equal(resolveCharacterIdentity("李四", project).name, "张三（父亲）");
+});

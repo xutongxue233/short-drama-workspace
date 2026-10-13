@@ -268,12 +268,18 @@ export function filterActivity(
     kind = "workflow",
   }: { agentId?: string; nodeId?: string; kind?: ActivityFilter },
 ) {
+  const matchesKind = (entry: ActivityEntry) => {
+    if (kind === "all") return true;
+    const isChat = entry.scope ? entry.scope === "chat" : entry.kind === "chat";
+    if (kind === "workflow") return !isChat;
+    if (kind === "chat") return isChat;
+    return entry.kind === kind;
+  };
   return entries.filter(
     (entry) =>
       (agentId === "all" || entry.relatedAgentIds.includes(agentId)) &&
       (nodeId === "all" || entry.relatedNodeIds.includes(nodeId)) &&
-      (kind === "all" ||
-        (kind === "workflow" ? entry.kind !== "chat" : entry.kind === kind)),
+      matchesKind(entry),
   );
 }
 

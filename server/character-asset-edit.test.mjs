@@ -190,7 +190,7 @@ test("later edits cannot restore stale metadata, open an approval or re-lock the
   assert.equal(JSON.stringify(fx.project), before);
 });
 
-test("unchanged structured design and legacy text edits keep their existing approval behavior", async (t) => {
+test("unchanged structured design stays approved but legacy image edits require regeneration", async (t) => {
   const structured = await fixture(t, { locked: false });
   const before = structuredClone(structured.project.nodes);
   assert.equal(
@@ -203,8 +203,8 @@ test("unchanged structured design and legacy text edits keep their existing appr
   const legacy = await fixture(t, { locked: false, structured: false });
   const result = await legacy.patch({ description: "人工修改文字角色提案" });
   assert.equal(result.status, 200);
-  assert.equal(legacy.reviews, 1);
-  assert.equal(legacy.project.approval.kind, "character");
-  assert.notEqual(legacy.project.approval.id, "previous-approval");
-  assert.ok(!result.body.tags.includes("待重新生成"));
+  assert.equal(legacy.reviews, 0);
+  assert.equal(legacy.project.approval, null);
+  assert.ok(result.body.tags.includes("待重新生成"));
+  assert.equal((await legacy.patch({ locked: true })).status, 409);
 });

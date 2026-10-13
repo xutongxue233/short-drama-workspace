@@ -28,7 +28,20 @@ export function mediaUrl(value, provider) {
   if (typeof value !== "string" || !value.trim())
     throw new ProviderError("媒体接口没有返回可用的 url；节点不会标记为已生成。", 502);
   const url = networkUrl(value, "媒体地址");
-  if (provider.apiKey && value.includes(provider.apiKey))
+  // Inspect encoded path/query/fragment values before persisting a public URL.
+  const candidates = [value, ...url.searchParams.values()];
+  for (let round = 0; round < 4; round++) {
+    for (const candidate of [...candidates]) {
+      const decoded = candidate.replace(/(?:%[\da-f]{2})+/giu, (encoded) =>
+        Buffer.from(encoded.replaceAll("%", ""), "hex").toString("utf8"),
+      );
+      if (!candidates.includes(decoded)) candidates.push(decoded);
+    }
+  }
+  if (
+    provider.apiKey &&
+    candidates.some((candidate) => candidate.includes(provider.apiKey))
+  )
     throw new ProviderError(
       "媒体地址包含当前 API Key，已拒绝保存。请改用独立的文件访问地址。",
       502,

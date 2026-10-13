@@ -270,6 +270,11 @@ export function ProviderEditor({
             )}
             <Field
               htmlFor={`${formId}-key`}
+              hint={
+                provider?.hasKey
+                  ? "仅在接口地址和协议不变时可留空保留密钥；更换地址或协议后，请重新填写密钥或勾选清除。"
+                  : undefined
+              }
               label={
                 <span className="settings-field-label">
                   API 密钥
@@ -292,7 +297,7 @@ export function ProviderEditor({
                   }}
                   placeholder={
                     provider?.hasKey && !clearApiKey
-                      ? "留空保留当前密钥"
+                      ? "地址和协议不变时，留空保留密钥"
                       : "可稍后填写；无认证服务可留空"
                   }
                   autoComplete="new-password"

@@ -87,12 +87,25 @@ export function providerInput(input, existing) {
   if (Object.hasOwn(input, "clearApiKey") && typeof input.clearApiKey !== "boolean")
     throw new ProviderError("清除密钥标识必须是布尔值");
   let apiKey = existing?.apiKey ?? "";
+  let suppliedKey = "";
   if (Object.hasOwn(input, "apiKey")) {
     const supplied = boundedString(input.apiKey, "API Key", 8192);
+    suppliedKey = supplied;
     if (/[\r\n]/.test(supplied)) throw new ProviderError("API Key 不能包含换行符");
     if (supplied) apiKey = supplied;
   }
   if (input.clearApiKey) apiKey = "";
+  const canonical = (value) => new URL(value).href.replace(/\/+$/, "");
+  if (
+    existing?.apiKey &&
+    (canonical(baseUrl) !== canonical(existing.baseUrl) ||
+      protocol !== existing.protocol) &&
+    !suppliedKey &&
+    !input.clearApiKey
+  )
+    throw new ProviderError(
+      "修改接口地址或协议时，请重新填写 API Key，或明确清除原密钥。",
+    );
   return {
     id: existing?.id ?? randomUUID(),
     name,

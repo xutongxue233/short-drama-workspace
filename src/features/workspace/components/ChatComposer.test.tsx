@@ -69,6 +69,25 @@ function type(input: HTMLTextAreaElement, value: string, caret = value.length) {
 }
 
 describe("chat composer mentions", () => {
+  it("restores the discussion mode together with the draft after leaving the chat", async () => {
+    const view = setup();
+    fireEvent.click(screen.getByRole("combobox", { name: "消息协作模式" }));
+    fireEvent.click(screen.getByRole("option", { name: "仅讨论" }));
+    type(view.input, "先创作一集");
+    view.unmount();
+    const returned = setup();
+    expect(returned.input.value).toBe("先创作一集");
+    expect(screen.getByRole("combobox", { name: "消息协作模式" }).textContent).toBe(
+      "仅讨论",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
+    await waitFor(() =>
+      expect(returned.onAction).toHaveBeenCalledWith(
+        "/projects/mention-test/messages",
+        { content: "先创作一集", agentId: undefined, intent: "discussion" },
+      ),
+    );
+  });
   it("lets the author explicitly discuss a creative request without starting production", async () => {
     const { input, onAction } = setup();
     fireEvent.click(screen.getByRole("combobox", { name: "消息协作模式" }));
@@ -260,8 +279,11 @@ describe("chat composer mentions", () => {
     type(returned.input, "返回后写的新草稿");
     await act(async () => resolve(true));
     expect(returned.input.value).toBe("返回后写的新草稿");
-    expect(sessionStorage.getItem("yingxu-draft-mention-test")).toBe(
-      "返回后写的新草稿",
-    );
+    expect(
+      JSON.parse(sessionStorage.getItem("yingxu-draft-mention-test")!),
+    ).toMatchObject({
+      text: "返回后写的新草稿",
+      intent: "auto",
+    });
   });
 });

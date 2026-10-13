@@ -400,3 +400,114 @@ test("specified shot selection rejects absent, malformed, postproduction and sta
   assert.throws(() => buildVideoShotRequest(section, { shotId: "01" }), /后期制作/);
   assert.equal(buildVideoShotRequest(section, { shotId: "08" }).shot.id, "08");
 });
+
+test("list-prefixed shot headings delimit all fields and preserve the requested later shot", () => {
+  for (const marker of ["- ", "* ", "### - "]) {
+    const project = fixture(
+      `${marker}镜头01\n时间：0–5秒\n画面：空庭院\n人物：无\n${marker}镜头02\n时间：5–10秒\n画面：父亲转身\n人物：父亲\n声音：SECOND_SHOT_AUDIO\n运镜：SECOND_SHOT_CAMERA`,
+    );
+    const first = buildVideoShotRequest(project);
+    assert.equal(first.shot.id, "01");
+    assert.equal(first.shot.sound, "");
+    assert.equal(first.shot.camera, "");
+    assert.equal(first.references.length, 0);
+    assert.doesNotMatch(first.prompt, /SECOND_SHOT|父亲/);
+    assert.equal(
+      buildVideoShotRequest(project, { shotId: "02" }).shot.sound,
+      "SECOND_SHOT_AUDIO",
+    );
+  }
+});
+
+test("section-format default selection skips postproduction shots and explicit selection refuses them", () => {
+  const project = fixture(
+    "- 镜头01\n时间：0–2秒\n画面：黑场\n制作方式：后期制作\n人物：无\n- 镜头02\n时间：2–3秒\n画面：静态字卡\n制作方式：后期叠字\n人物：无\n- 镜头03\n时间：3–8秒\n画面：长生推门\n人物：长生",
+  );
+  const result = buildVideoShotRequest(project);
+  assert.equal(result.shot.id, "03");
+  assert.equal(result.videoOptions.duration, 5);
+  assert.deepEqual(
+    result.shot.skippedShots.map((shot) => shot.id),
+    ["01", "02"],
+  );
+  assert.throws(() => buildVideoShotRequest(project, { shotId: "01" }), /后期制作/);
+  assert.throws(() => buildVideoShotRequest(project, { shotId: "02" }), /后期制作/);
+});
+
+test("each visible character must have its own matching reference without name-ID conflicts", () => {
+  const board = (characters, references) =>
+    `|镜号|时间|画面|人物|资产引用|\n|---|---|---|---|---|\n|01|0–5秒|长生和父亲面对面|${characters}|${references}|`;
+  for (const separator of ["；", "、", "，"]) {
+    const characters = `长生${separator}父亲`;
+    assert.throws(
+      () => buildVideoShotRequest(fixture(board(characters, "asset-lead / v2"))),
+      /遗漏出镜人物「父亲」/,
+    );
+    const result = buildVideoShotRequest(
+      fixture(board(characters, "asset-lead / v2；asset-other / v2")),
+    );
+    assert.deepEqual(
+      result.references.map((ref) => ref.name),
+      ["长生", "父亲"],
+    );
+  }
+  assert.throws(
+    () => buildVideoShotRequest(fixture(board("长生；陌生甲", "asset-lead / v2"))),
+    /陌生甲.*唯一匹配/,
+  );
+  assert.throws(
+    () =>
+      buildVideoShotRequest(
+        fixture(board("长生（asset-other / v2）", "asset-other / v2")),
+      ),
+    /唯一匹配/,
+  );
+  assert.throws(
+    () =>
+      buildVideoShotRequest(
+        fixture(board("长生", "asset-lead / v2；asset-other / v2")),
+      ),
+    /父亲.*未列为出镜人物/,
+  );
+});
+
+test("missing participants require clarification while explicit empty and voice-only shots remain valid", () => {
+  assert.throws(
+    () => buildVideoShotRequest(fixture("## 镜头01\n时间：0–5秒\n画面：长生走进房间")),
+    /缺少人物栏/,
+  );
+  assert.throws(
+    () =>
+      buildVideoShotRequest(
+        fixture(
+          "|镜号|时间|画面|资产引用|\n|---|---|---|---|\n|01|0–5秒|长生走进房间|asset-lead / v2|",
+        ),
+      ),
+    /缺少人物栏/,
+  );
+  for (const characters of ["无", "父亲（仅声音，不出现可辨身体）"]) {
+    const result = buildVideoShotRequest(
+      fixture(`## 镜头01\n时间：0–5秒\n画面：空庭院\n人物：${characters}`),
+    );
+    assert.equal(result.references.length, 0);
+  }
+});
+
+test("an explicit character ID disambiguates shared verified titles", () => {
+  const project = fixture(
+    "|镜号|时间|画面|人物|资产引用|\n|---|---|---|---|---|\n|01|0–5秒|父亲推门|父亲（asset-other / v2）|父亲（asset-other / v2）|",
+  );
+  project.assets[0].name = "李明";
+  project.assets[0].content = "已核实称谓：父亲";
+  project.assets[1].name = "张强";
+  project.assets[1].content = "已核实称谓：父亲";
+  assert.deepEqual(
+    buildVideoShotRequest(project).references.map((asset) => asset.id),
+    ["asset-other"],
+  );
+  project.assets[2].content = project.assets[2].content.replaceAll(
+    "父亲（asset-other / v2）",
+    "父亲",
+  );
+  assert.throws(() => buildVideoShotRequest(project), /唯一匹配/);
+});

@@ -178,7 +178,7 @@ test("disabled and missing bindings produce actionable agent errors without sile
 test("only direct coordinator commands dispatch production, never quoted questions or discussion mode", () => {
   const producer = { id: "producer", name: "总制片" };
   for (const content of [
-    "总制片，先创作一集符合抖音爆款的短剧吧",
+    "总制片，先创作一集短剧吧",
     "@总制片 请开始制作",
     "继续制作",
     "恢复流程",
@@ -193,6 +193,11 @@ test("only direct coordinator commands dispatch production, never quoted questio
     "比如开始制作",
     "请解释“继续制作”",
     "先讨论一下剧情",
+    "制作短剧的预算是多少",
+    "生成一部短剧不可以",
+    "总制片，先创作一集符合抖音爆款的短剧吧",
+    "制作短剧需要多少钱",
+    "创作一集以后再说",
   ])
     assert.equal(productionCommand(content, producer), null, content);
   assert.equal(productionCommand("开始制作", producer, "discussion"), null);
@@ -225,7 +230,7 @@ async function waitForApproval(fx, nodeId) {
   assert.fail(`Approval ${nodeId} did not arrive`);
 }
 
-test("the original creation request starts the pipeline and approval automatically hands off to the writer", async (t) => {
+test("a complete creation command starts the pipeline and approval automatically hands off to the writer", async (t) => {
   const fx = await fixture(t);
   fx.project.style = "二次元动画";
   fx.project.chapters.push({
@@ -235,7 +240,7 @@ test("the original creation request starts the pipeline and approval automatical
     createdAt: new Date().toISOString(),
   });
   fx.project.members = ["producer"];
-  const sent = await fx.send({ content: "总制片，先创作一集符合抖音爆款的短剧吧" });
+  const sent = await fx.send({ content: "总制片，请开始制作" });
   assert.equal(sent.status, 201);
   const approval = await waitForApproval(fx, "analysis");
   assert.ok(fx.project.members.includes("writer"));

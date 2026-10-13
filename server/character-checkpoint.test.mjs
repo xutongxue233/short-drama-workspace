@@ -255,7 +255,17 @@ test("character revisions keep every generated material even when the unlocked a
   assert.match(first.prompt.slice(0, 100), /「林晚」/);
 });
 
-test("partial character failures retain the downloaded material and retry only missing roles", async (t) => {
+function archiveUncertainImage(project, workflow) {
+  const image = project.nodes
+    .find((node) => node.id === "characters")
+    .characterGeneration.images.find((item) => item.status === "submitted");
+  workflow.archiveImageTask(project, {
+    captureId: image.captureId,
+    acknowledgement: "new-image-may-charge",
+  });
+}
+
+test("partial character failures retain the downloaded material and retry only explicitly archived missing roles", async (t) => {
   const fx = await fixture(t, { materials: managedMaterials() });
   fx.calls.failImages.add(2);
   await fx.run();
@@ -264,6 +274,7 @@ test("partial character failures retain the downloaded material and retry only m
   assert.ok(
     fx.checkpoints.some((checkpoint) => JSON.parse(checkpoint).materials?.[0]?.assetId),
   );
+  archiveUncertainImage(fx.project, fx.workflow);
   await fx.run();
   assert.equal(fx.calls.images.length, 3);
   assert.equal(fx.project.materials.length, 2);
@@ -401,6 +412,7 @@ test("a later image failure checkpoints successful drafts and retries only the m
       JSON.parse(checkpoint).assets.some((asset) => asset.url === first.url),
     ),
   );
+  archiveUncertainImage(fx.project, fx.workflow);
   await fx.run({ nodeId: "characters" });
   assert.equal(fx.calls.plans, 1);
   assert.equal(fx.calls.images.length, 3);
@@ -421,6 +433,7 @@ test("serialized checkpoints resume successful images after a process restart", 
     save() {},
   });
   t.after(workflow.close);
+  archiveUncertainImage(project, workflow);
   workflow.start(project);
   await workflow.jobs.get(project.id).promise;
   assert.equal(fx.calls.plans, 1);
@@ -436,6 +449,10 @@ test("bare chat retry commands preserve checkpoints while new creative feedback 
   remember(fx.project, "用户反馈（交给总制片）：@总制片 继续制作。");
   await fx.run();
   assert.equal(fx.calls.plans, 1);
+  assert.equal(fx.calls.images.length, 2);
+  assert.match(fx.node.error, /不能自动重复生图/);
+  archiveUncertainImage(fx.project, fx.workflow);
+  await fx.run();
   assert.equal(fx.calls.images.length, 3);
 
   const other = await fixture(t);
@@ -873,6 +890,7 @@ test("a serialized pilot approval survives restart and a failed batch retries wi
     save() {},
   });
   t.after(resumedWorkflow.close);
+  archiveUncertainImage(resumedProject, resumedWorkflow);
   resumedWorkflow.start(resumedProject, { nodeId: "characters" });
   await resumedWorkflow.jobs.get(resumedProject.id)?.promise;
   assert.equal(fx.calls.plans, 1);

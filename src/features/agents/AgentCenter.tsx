@@ -103,7 +103,9 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
             onToggle={() => {
               void toggle(agent);
             }}
-            onEdit={() => setEditing(agent)}
+            onEdit={() => {
+              if (!busy) setEditing(agent);
+            }}
           />
         ))}
       </div>

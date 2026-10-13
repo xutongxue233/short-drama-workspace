@@ -6,6 +6,7 @@ import { discoverModels, modelListInput } from "../providers/models.mjs";
 import { bodyObject, textInput } from "../http/validation.mjs";
 import { HttpError } from "../http/errors.mjs";
 import { characterImageTestInput } from "../services/character-image-test.mjs";
+import { beginProjectTask } from "../services/project-tasks.mjs";
 
 export function mountProviderRoutes(
   app,
@@ -165,8 +166,10 @@ export function mountProviderRoutes(
       input,
     );
     const controller = new AbortController();
+    const releaseTask = beginProjectTask(project, "image-test");
     imageTests.set(projectId, controller);
     const started = Date.now();
+    let generated = false;
     try {
       const result = await generate({
         provider,
@@ -180,6 +183,7 @@ export function mountProviderRoutes(
       });
       controller.signal.throwIfAborted();
       if (!result.url) throw new ProviderError("测试没有返回有效图片。", 502);
+      generated = true;
       const material = await materials.capture(
         project,
         {
@@ -219,15 +223,19 @@ export function mountProviderRoutes(
           )
           .json({
             ok: false,
+            generated,
+            savedLocally: false,
             model,
-            error:
-              error instanceof ProviderError || error instanceof HttpError
+            error: generated
+              ? "图片已生成，但素材记录保存失败。请在素材库检查并重试保存，避免重复生图。"
+              : error instanceof ProviderError || error instanceof HttpError
                 ? error.message
                 : "生图测试已中断或保存失败。",
             latencyMs: Date.now() - started,
           });
     } finally {
       imageTests.delete(projectId);
+      releaseTask();
     }
   });
   return {

@@ -57,11 +57,12 @@ export function MaterialDialog({
               : "当前预览使用远程地址，保存到本地后可避免链接失效。"}
           </span>
         </div>
-        {material.error && material.status === "failed" && (
-          <p className="error-box" role="status">
-            {material.error}
-          </p>
-        )}
+        {material.error &&
+          (material.status === "failed" || material.status === "local") && (
+            <p className="error-box" role="status">
+              {material.error}
+            </p>
+          )}
         <dl className="material-details">
           <div>
             <dt>生成模型</dt>

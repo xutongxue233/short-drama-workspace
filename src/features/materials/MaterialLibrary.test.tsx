@@ -204,6 +204,75 @@ describe("MaterialLibrary", () => {
     ).toBe("/api/media/image-1/file?download=1");
     expect(screen.getByRole("img").getAttribute("src")).toBe("/api/media/image-1/file");
   });
+  it("lets a failed preview load again without closing the material dialog or changing its selection", () => {
+    render(
+      <MaterialLibrary
+        projects={[project("p1", [material()])]}
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "预览 长生定妆初稿" }));
+    const dialog = screen.getByRole("dialog");
+    const preview = within(dialog).getByRole("img");
+    fireEvent.error(preview);
+    expect(within(dialog).queryByRole("img")).toBeNull();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "重试加载 长生定妆初稿" }),
+    );
+    const retried = within(dialog).getByRole("img");
+    expect(retried).not.toBe(preview);
+    expect(retried.getAttribute("src")).toBe("/api/media/image-1/file");
+  });
+  it("retries a failed record save while retaining the local preview and download", async () => {
+    const error = "本地文件已保存，但素材记录保存失败，请重试保存。";
+    const action = vi.fn().mockResolvedValue(true);
+    const { rerender } = render(
+      <MaterialLibrary
+        projects={[project("p1", [material({ error })])]}
+        busy={false}
+        onAction={action}
+      />,
+    );
+    expect(screen.getByText(error)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "重试保存记录 长生定妆初稿" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "下载 长生定妆初稿" }).getAttribute("href"),
+    ).toBe("/api/media/image-1/file?download=1");
+    fireEvent.click(screen.getByRole("button", { name: "预览 长生定妆初稿" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(error)).toBeTruthy();
+    expect(within(dialog).getByRole("img").getAttribute("src")).toBe(
+      "/api/media/image-1/file",
+    );
+    expect(
+      within(dialog).getByRole("link", { name: "下载 长生定妆初稿" }),
+    ).toBeTruthy();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "重试保存记录 长生定妆初稿" }),
+    );
+    await waitFor(() =>
+      expect(action).toHaveBeenCalledExactlyOnceWith(
+        "/projects/p1/materials/image-1/download",
+        {},
+        "素材保存状态已更新",
+      ),
+    );
+    rerender(
+      <MaterialLibrary
+        projects={[project("p1", [material()])]}
+        busy={false}
+        onAction={action}
+      />,
+    );
+    expect(screen.queryByText(error)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "重试保存记录 长生定妆初稿" }),
+    ).toBeNull();
+    expect(within(dialog).getByRole("img")).toBeTruthy();
+  });
   it("requires a concrete project for history import and disables saves during downloads", () => {
     render(
       <MaterialLibrary

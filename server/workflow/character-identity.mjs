@@ -120,6 +120,18 @@ function sources(project) {
   ];
 }
 
+function affirmativeMatch(text, pattern) {
+  return [...text.matchAll(pattern)].some((match) => {
+    const prefix = text
+      .slice(0, match.index)
+      .split(/[。！？!?；;\n]/u)
+      .at(-1);
+    return !/(?:不是|并非|而非|非|不叫|不叫做|否认|别把|不要把|不能把|误把|错把)[\s“"「]*$/u.test(
+      prefix,
+    );
+  });
+}
+
 function explicitIdentity(text, first, second) {
   const end = '(?=$|[\\s，,。！？!?；;：:“”"「」()])';
   for (const [left, right] of [
@@ -131,10 +143,13 @@ function explicitIdentity(text, first, second) {
     const predicate =
       "(?:本名|原名|真名|姓名|全名|名字|名叫|名为|叫做|又名|别名|化名|小名|乳名|昵称|就是|也就是|即|实为|叫|是)";
     if (
-      new RegExp(
-        `${a}\\s*[,，:：]?\\s*${predicate}\\s*(?:为|是|叫|[:：])?\\s*(?:我的|我们家的)?[“"「]?${b}${end}`,
-        "u",
-      ).test(text)
+      affirmativeMatch(
+        text,
+        new RegExp(
+          `${a}\\s*[,，:：]?\\s*${predicate}\\s*(?:为|是|叫|[:：])?\\s*(?:我的|我们家的)?[“"「]?${b}${end}`,
+          "gu",
+        ),
+      )
     )
       return true;
   }
@@ -149,10 +164,13 @@ function explicitIdentity(text, first, second) {
   const p = escaped(person);
   // Apposition in the source is explicit; mere occurrence in the same paragraph is not.
   if (
-    new RegExp(
-      `(?:${t}\\(${p}\\)|${p}\\(${t}\\)|${t}${p}${end}|${p}${t}${end})`,
-      "u",
-    ).test(text)
+    affirmativeMatch(
+      text,
+      new RegExp(
+        `(?:${t}\\(${p}\\)|${p}\\(${t}\\)|${t}${p}${end}|${p}${t}${end})`,
+        "gu",
+      ),
+    )
   )
     return true;
   // A quoted name followed by narration identifying its addressee, e.g.
@@ -163,17 +181,48 @@ function explicitIdentity(text, first, second) {
   ).test(text);
 }
 
+function properNames(names) {
+  return names.filter((name) => !TITLES.includes(name) && !titleFamily(name));
+}
+
+function lockedNames(entry) {
+  return [
+    ...components(normalized(entry.asset.name)),
+    ...verifiedAliases(entry).flatMap((name) => components(normalized(name))),
+  ];
+}
+
+function namedMatch(entry, names) {
+  return properNames(names).some(
+    (name) =>
+      properNames(lockedNames(entry)).some(
+        (known) => name === known || explicitIdentity(entry.text, known, name),
+      ) || explicitIdentity(entry.text, normalized(entry.asset.name), name),
+  );
+}
+
 function lockedMatch(entry, names) {
   if (!entry.asset) return false;
   const lockedName = normalized(entry.asset.name);
   const lockedParts = components(lockedName);
   const aliases = verifiedAliases(entry);
-  return names.some(
-    (name) =>
-      name === lockedName ||
-      lockedParts.includes(name) ||
-      aliases.includes(name) ||
-      explicitIdentity(entry.text, lockedName, name),
+  // A shared title such as 父亲 is not evidence that two different named
+  // people are one person. Named matches outrank generic role matches.
+  if (
+    properNames(names).length &&
+    properNames(lockedNames(entry)).length &&
+    !namedMatch(entry, names)
+  )
+    return false;
+  return (
+    namedMatch(entry, names) ||
+    names.some(
+      (name) =>
+        name === lockedName ||
+        lockedParts.includes(name) ||
+        aliases.includes(name) ||
+        explicitIdentity(entry.text, lockedName, name),
+    )
   );
 }
 
@@ -338,9 +387,16 @@ export function resolveCharacterIdentity(rawName, project) {
     if (!identityEvidence) missing(requested, true);
   }
   const equivalentTitles = names.length === 1 ? titleFamily(names[0]) || [] : [];
-  const locked = evidence.find((entry) =>
+  const lockedCandidates = evidence.filter((entry) =>
     lockedMatch(entry, [...names, ...equivalentTitles]),
   );
+  const namedCandidates = lockedCandidates.filter((entry) => namedMatch(entry, names));
+  const candidates = namedCandidates.length ? namedCandidates : lockedCandidates;
+  if (candidates.length > 1)
+    throw new Error(
+      `角色「${requested}」匹配到多个已锁定人物，请使用明确姓名并补充身份关系，不能仅凭共用称谓合并。`,
+    );
+  const locked = candidates[0];
   const direct = evidence.find(
     (entry) => entry.kind !== "locked" && hasNameEvidence(entry.text, names[0]),
   );

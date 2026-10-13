@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { EpisodeArchive, Project } from "../../../types";
-import { archivedEpisodeProject } from "../episodes";
+import { archivedEpisodeProject, canStartNextEpisode } from "../episodes";
 import { EpisodeArchiveDialog } from "./EpisodeArchiveDialog";
 
 const current: Project = {
@@ -79,6 +79,49 @@ function setup(project = current, onCreate = vi.fn().mockResolvedValue(undefined
 }
 
 describe("episode archive", () => {
+  it("does not archive a project while a background image test is active", () => {
+    expect(canStartNextEpisode({ ...current, backgroundTask: "image-test" })).toBe(
+      false,
+    );
+  });
+  it("uses the same discard confirmation for workflow navigation and disables it during creation", async () => {
+    const onWorkflow = vi.fn();
+    let finish!: () => void;
+    const onCreate = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(
+      <EpisodeArchiveDialog
+        project={current}
+        onClose={vi.fn()}
+        onActivity={vi.fn()}
+        onCreate={onCreate}
+        onWorkflow={onWorkflow}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "开始下一集" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /第 3 集标题/ }), {
+      target: { value: "未保存标题" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "进入本集流程" }));
+    expect(onWorkflow).not.toHaveBeenCalled();
+    expect(screen.getByText("有尚未保存的修改")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "继续编辑" }));
+    fireEvent.click(screen.getByRole("button", { name: "归档并创建第 3 集" }));
+    expect(
+      (screen.getByRole("button", { name: "进入本集流程" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "进入本集流程" }));
+    expect(onWorkflow).not.toHaveBeenCalled();
+    await act(async () => finish());
+    fireEvent.click(screen.getByRole("button", { name: "进入本集流程" }));
+    fireEvent.click(screen.getByRole("button", { name: "放弃修改" }));
+    expect(onWorkflow).toHaveBeenCalledOnce();
+  });
   it.each([
     { running: true },
     { approval: { id: "approval" } },
