@@ -1,0 +1,231 @@
+.agent-computer-binding {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 9px 0 0;
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.agent-computer-binding > svg {
+  flex-shrink: 0;
+}
+.agent-computer-binding > span {
+  min-width: 0;
+  flex: 1;
+}
+.agent-computer-binding strong {
+  display: block;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.agent-computer-binding small {
+  display: block;
+  margin-top: 4px;
+  color: var(--ui-warning);
+  line-height: 1.6;
+}
+.computer-manager-heading,
+.computer-list-item,
+.computer-list-actions,
+.computer-mode-strip,
+.computer-mode-strip > span,
+.computer-pointer-controls,
+.computer-recovery-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.computer-manager-heading {
+  justify-content: space-between;
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: var(--ui-muted);
+}
+.computer-list {
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.computer-list-item {
+  padding: 18px;
+}
+.computer-list-item + .computer-list-item {
+  border-top: 1px solid var(--ui-border);
+}
+.computer-list-item > svg {
+  color: var(--ui-accent);
+  flex-shrink: 0;
+}
+.computer-list-item > div:first-of-type {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.computer-list-item strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.computer-list-item p,
+.computer-list-item small,
+.computer-empty {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ui-muted);
+}
+.computer-list-item p {
+  margin: 5px 0;
+}
+.computer-list-actions {
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.computer-empty {
+  padding: 28px 18px;
+  text-align: center;
+}
+.computer-viewer.ui-dialog {
+  width: min(1100px, calc(100vw - 32px));
+  max-width: 1100px;
+}
+.computer-viewer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.computer-viewer-body > * {
+  flex-shrink: 0;
+}
+.computer-mode-strip {
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  background: var(--ui-surface-subtle);
+}
+.computer-mode-strip > span:first-child {
+  color: var(--ui-accent);
+  font-size: 14px;
+}
+.computer-mode-strip.is-human {
+  background: var(--ui-warning-soft);
+  border-color: #e8d3aa;
+}
+.computer-mode-strip.is-human > span:first-child {
+  color: var(--ui-warning);
+}
+.computer-connection {
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.computer-connection i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ui-muted);
+}
+.computer-connection.is-online i {
+  background: var(--ui-success);
+}
+.computer-screen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  background: #252335;
+  border: 1px solid #403c52;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.computer-screen img {
+  display: block;
+  max-width: 100%;
+  max-height: 55vh;
+  width: auto;
+  height: auto;
+  user-select: none;
+}
+.computer-screen.can-control img {
+  cursor: crosshair;
+}
+.computer-screen-placeholder {
+  color: #d3ccdf;
+  text-align: center;
+  font-size: 13px;
+  padding: 40px;
+}
+.computer-stale {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: #252335e8;
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+}
+.computer-inputs {
+  display: grid;
+  gap: 14px;
+}
+.computer-inputs > .ui-button {
+  justify-self: end;
+}
+.computer-pointer-controls {
+  flex-wrap: wrap;
+  align-items: end;
+}
+.computer-pointer-controls > .ui-field {
+  width: 140px;
+  margin-bottom: 0;
+}
+.computer-pointer-controls > span {
+  padding-bottom: 8px;
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.computer-keyboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.computer-keyboard .ui-button {
+  min-width: 38px;
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+}
+.computer-viewer-footer {
+  flex-wrap: wrap;
+}
+.computer-viewer-footer > span {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.computer-recovery-actions {
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+@media (max-width: 600px) {
+  .agent-heading-actions {
+    flex-wrap: wrap;
+  }
+  .computer-list-item {
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+  .computer-list-actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+  .computer-mode-strip {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .computer-viewer-footer > span {
+    flex-basis: 100%;
+  }
+}

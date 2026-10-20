@@ -28,6 +28,19 @@ export interface Agent {
   model: string;
   systemPrompt: string;
   skillIds?: string[];
+  computerId?: string;
+}
+export interface Computer {
+  id: string;
+  name: string;
+  endpoint: string;
+  hasToken: boolean;
+  control: {
+    mode: "agent" | "human";
+    ownerId?: string;
+    ownerName?: string;
+    since?: string;
+  };
 }
 export interface Skill {
   id: string;

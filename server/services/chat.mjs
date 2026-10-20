@@ -47,7 +47,7 @@ function replyFailure(error, providers) {
 }
 
 /** Owns per-project generation jobs; no HTTP response objects cross this boundary. */
-export function createChatService({ getState, save, workflow, materials }) {
+export function createChatService({ getState, save, workflow, materials, computers }) {
   const chatJobs = new Map();
   let closed = false;
   async function sendMessage(project, input, { signal, sender, access } = {}) {
@@ -112,6 +112,7 @@ export function createChatService({ getState, save, workflow, materials }) {
     if (!agent || !agent.enabled) throw new HttpError(400, "目标 Agent 不存在或未启用");
     if (sender && !["owner", "editor"].includes(access))
       throw new HttpError(403, "调用 Agent 或技能需要项目编辑权限。");
+    computers?.assertAgentAvailable(agentId);
     const explicitSkillIds = requestedSkills(content, input.skillIds, getState());
     // Resolve and copy before saving the user's message or inviting a member.
     // Skill edits during an in-flight request affect only subsequent requests.
@@ -177,11 +178,19 @@ export function createChatService({ getState, save, workflow, materials }) {
     }
     const controller = new AbortController();
     const runId = uid("discussion");
-    chatJobs.set(project.id, {
+    const job = {
       controller,
       runId,
       pending: { agentId, messageId: message.id, startedAt: message.createdAt },
-    });
+      agentIds: new Set([agentId]),
+      cancelled: false,
+    };
+    chatJobs.set(project.id, job);
+    const assertActive = () => {
+      controller.signal.throwIfAborted();
+      if (chatJobs.get(project.id) !== job) throw new Error("本条讨论已暂停。");
+      for (const id of job.agentIds) computers?.assertAgentAvailable(id);
+    };
     try {
       const configured = getState().providers.find(
         (provider) => provider.id === agent.providerId,
@@ -212,6 +221,8 @@ export function createChatService({ getState, save, workflow, materials }) {
           "此角色尚无可用的文本对话接口，请配置该角色、总制片或编剧的文本服务。",
         );
       if (fallbackAgent) {
+        job.agentIds.add(fallbackAgent.id);
+        assertActive();
         addMessage(
           project,
           "system",
@@ -225,6 +236,8 @@ export function createChatService({ getState, save, workflow, materials }) {
       const context = buildContext(project);
       const result = await generate({
         onDispatch() {
+          // References may have awaited disk/network I/O since job creation.
+          assertActive();
           const started = addMessage(
             project,
             agentId,
@@ -257,7 +270,8 @@ export function createChatService({ getState, save, workflow, materials }) {
           : controller.signal,
         timeoutMs: 90000,
       });
-      if (closed) return message;
+      if (closed || job.cancelled) return message;
+      assertActive();
       const reply = addMessage(project, agentId, result.text, "text", undefined, {
         kind: "result",
         scope: "chat",
@@ -266,7 +280,7 @@ export function createChatService({ getState, save, workflow, materials }) {
       });
       reply.replyTo = message.id;
     } catch (error) {
-      if (closed) return message;
+      if (closed || job.cancelled) return message;
       const reply = addMessage(
         project,
         agentId,
@@ -277,7 +291,7 @@ export function createChatService({ getState, save, workflow, materials }) {
       );
       reply.replyTo = message.id;
     } finally {
-      chatJobs.delete(project.id);
+      if (chatJobs.get(project.id) === job) chatJobs.delete(project.id);
     }
     if (project.messages.length - project.memory.compressedCount >= 30)
       compressMemory(project);
@@ -289,6 +303,38 @@ export function createChatService({ getState, save, workflow, materials }) {
     getPending(projectId) {
       const pending = chatJobs.get(projectId)?.pending;
       return pending ? { ...pending } : null;
+    },
+    isUsingAgents(ids) {
+      return [...chatJobs.values()].some((job) =>
+        [...job.agentIds].some((id) => ids.has(id)),
+      );
+    },
+    pauseAgents(ids) {
+      let changed = false;
+      for (const [projectId, job] of chatJobs) {
+        if (![...job.agentIds].some((id) => ids.has(id))) continue;
+        job.cancelled = true;
+        job.controller.abort();
+        chatJobs.delete(projectId);
+        const project = getState().projects.find((item) => item.id === projectId);
+        if (!project) continue;
+        const paused = addMessage(
+          project,
+          job.pending.agentId,
+          "绑定电脑已由人工接管，本条讨论回复已暂停；释放接管后可重新发送。",
+          "system",
+          undefined,
+          {
+            kind: "paused",
+            scope: "chat",
+            phase: "computer-takeover",
+            runId: job.runId,
+          },
+        );
+        paused.replyTo = job.pending.messageId;
+        changed = true;
+      }
+      if (changed) save();
     },
     close() {
       if (closed) return;

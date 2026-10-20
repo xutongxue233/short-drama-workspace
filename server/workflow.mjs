@@ -48,8 +48,25 @@ export {
   buildContext,
 } from "./workflow/memory.mjs";
 
-export function createWorkflow({ getState, save, materials }) {
+export function createWorkflow({ getState, save, materials, computers }) {
   const jobs = new Map();
+  function assertNodeComputerAvailable(node) {
+    if (!node) return;
+    computers?.assertAgentAvailable(node.agentId);
+    if (node.id === "characters") {
+      const agent = getState().agents.find((item) => item.id === node.agentId);
+      const provider = getState().providers.find(
+        (item) => item.id === agent?.providerId,
+      );
+      if (provider?.kind !== "text") computers?.assertAgentAvailable("writer");
+    }
+  }
+  function usesAgents(project, ids) {
+    return project.nodes.some(
+      (node) =>
+        ids.has(node.agentId) || (node.id === "characters" && ids.has("writer")),
+    );
+  }
   function failureDetail(error) {
     let detail = String(error?.message || "本地检查点写入失败");
     for (const provider of getState().providers)
@@ -263,6 +280,8 @@ export function createWorkflow({ getState, save, materials }) {
   }
 
   async function produce(project, node, signal, onStart, { shotId } = {}) {
+    signal.throwIfAborted();
+    assertNodeComputerAvailable(node);
     const agent = agentFor(node);
     const provider = getState().providers.find((item) => item.id === agent.providerId);
     if (!provider)
@@ -725,6 +744,7 @@ export function createWorkflow({ getState, save, materials }) {
         if (node.status === "completed") continue;
         if (node.status === "waiting" || project.approval) break;
         job.current = { node, runId: uid("execution"), started: false };
+        assertNodeComputerAvailable(node);
         const agent = agentFor(node);
         invite(project, node.agentId);
         if (node.id === "analysis") {
@@ -740,9 +760,10 @@ export function createWorkflow({ getState, save, materials }) {
           node,
           controller.signal,
           (usesModel = true, skills = []) => {
-            if (job.current.started) return;
             controller.signal.throwIfAborted();
             if (jobs.get(project.id) !== job) throw new Error("本次节点执行已结束。");
+            assertNodeComputerAvailable(node);
+            if (job.current.started) return;
             job.current.started = true;
             node.startedAt = now();
             const started = recordNodeStart(
@@ -813,6 +834,10 @@ export function createWorkflow({ getState, save, materials }) {
       }
     } catch (error) {
       if (!controller.signal.aborted && jobs.get(project.id) === job) {
+        if (error.computerTakeover) {
+          stop(project, { computerTakeover: true });
+          return;
+        }
         const node =
           job.current?.node ||
           project.nodes.find((item) => item.status === "running") ||
@@ -877,6 +902,7 @@ export function createWorkflow({ getState, save, materials }) {
     const target = nodeId
       ? project.nodes.find((node) => node.id === nodeId)
       : project.nodes.find((node) => node.status !== "completed");
+    assertNodeComputerAvailable(target);
     const selectedShotId =
       shotId ??
       (target?.id === "video"
@@ -952,7 +978,7 @@ export function createWorkflow({ getState, save, materials }) {
     return project;
   }
 
-  function stop(project) {
+  function stop(project, { computerTakeover = false } = {}) {
     const job = jobs.get(project.id);
     const activeNode =
       job?.current?.node || project.nodes.find((node) => node.status === "running");
@@ -967,15 +993,13 @@ export function createWorkflow({ getState, save, materials }) {
     addMessage(
       project,
       "system",
-      `已暂停制作。已完成的节点、确认决策和锁定资产已保存。本地已停止等待，远端生成任务可能仍在运行；重试前请检查供应商任务状态，避免重复提交。`,
+      `${computerTakeover ? "绑定电脑已由人工接管，" : ""}已暂停制作。已完成的节点、确认决策和锁定资产已保存。本地已停止等待，远端生成任务可能仍在运行；重试前请检查供应商任务状态，避免重复提交。`,
       "system",
       activeNode?.id,
-      workflowEvent(
-        project,
-        activeNode,
-        "paused",
-        job?.current ? { runId: job.current.runId } : {},
-      ),
+      workflowEvent(project, activeNode, "paused", {
+        ...(job?.current ? { runId: job.current.runId } : {}),
+        ...(computerTakeover ? { phase: "computer-takeover" } : {}),
+      }),
     );
     save();
     return project;
@@ -1345,6 +1369,24 @@ export function createWorkflow({ getState, save, materials }) {
     invite,
     invalidateFrom,
     reviewEditedAsset,
+    isUsingAgents(ids) {
+      return getState().projects.some(
+        (project) => jobs.has(project.id) && usesAgents(project, ids),
+      );
+    },
+    pauseAgents(ids) {
+      const failures = [];
+      for (const project of getState().projects) {
+        if (!jobs.has(project.id) || !usesAgents(project, ids)) continue;
+        try {
+          stop(project, { computerTakeover: true });
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      if (failures.length)
+        throw new AggregateError(failures, "电脑接管后工作流检查点保存失败。");
+    },
     jobs,
     close: () => {
       const failures = [];

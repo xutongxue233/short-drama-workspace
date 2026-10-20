@@ -8,7 +8,7 @@ import {
   assertAgentNameAvailable,
 } from "../services/agent-config.mjs";
 
-export function mountAgentsRoutes(app, { getState, save }) {
+export function mountAgentsRoutes(app, { getState, save, computers }) {
   app.post(
     "/api/agents",
     transactionalRoute(getState, (req, res) => {
@@ -17,6 +17,7 @@ export function mountAgentsRoutes(app, { getState, save }) {
         id: uid("agent"),
         ...agentInput(bodyObject(req), state, { creating: true }),
       };
+      computers?.assertBindingChange(undefined, agent.computerId);
       assertAgentNameAvailable(agent.name, state.agents);
       state.agents.push(agent);
       save();
@@ -32,6 +33,8 @@ export function mountAgentsRoutes(app, { getState, save }) {
       const patch = agentInput(bodyObject(req), getState(), {
         existing: agent,
       });
+      if (Object.hasOwn(patch, "computerId"))
+        computers?.assertBindingChange(agent, patch.computerId);
       assertAgentNameAvailable(patch.name, getState().agents, agent);
       // In-flight generation keeps its original configuration across awaits.
       const updated = { ...agent, ...patch };
@@ -48,6 +51,7 @@ export function mountAgentsRoutes(app, { getState, save }) {
       const index = state.agents.findIndex((item) => item.id === req.params.id);
       if (index === -1) throw new HttpError(404, "Agent 不存在");
       const agent = state.agents[index];
+      computers?.assertBindingChange(agent, "");
       assertAgentCanDelete(agent, state.projects);
       state.agents.splice(index, 1);
       save();

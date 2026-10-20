@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Plus, Search, Users } from "lucide-react";
-import { type Agent } from "../../types";
+import { Monitor, Plus, Search, Users } from "lucide-react";
+import { type Agent, type Computer } from "../../types";
 import { Alert, Button, Select } from "../../ui";
 import { type SettingsProps } from "../../components/settings/types";
 import { AgentEditor } from "./AgentEditor";
@@ -8,9 +8,13 @@ import { AgentCard } from "./AgentCard";
 import { DeleteAgentDialog } from "./DeleteAgentDialog";
 import { isBuiltInAgent } from "./agentConfig";
 import { SettingsSearch } from "../../components/settings/SettingsSearch";
+import { ComputerManager } from "./ComputerManager";
+import { ComputerViewer } from "./ComputerViewer";
+import { useComputers } from "./useComputers";
 
 import "../../components/settings/settings.css";
 import "./agents.css";
+import "./computers.css";
 
 type EditorState = { agent?: Agent; copyFrom?: Agent };
 
@@ -22,6 +26,14 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
   const [deleting, setDeleting] = useState<Agent | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const isAdmin = state.currentUser?.role === "admin";
+  const {
+    computers,
+    error: computerError,
+    refresh: refreshComputers,
+  } = useComputers(isAdmin);
+  const [managingComputers, setManagingComputers] = useState(false);
+  const [viewingComputer, setViewingComputer] = useState<Computer | null>(null);
   const enabledCount = state.agents.filter((item) => item.enabled).length;
   const filtered = state.agents.filter(
     (item) =>
@@ -75,6 +87,12 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
             <Plus size={16} />
             新增 Agent
           </Button>
+          {isAdmin && (
+            <Button onClick={() => setManagingComputers(true)}>
+              <Monitor size={16} />
+              管理电脑
+            </Button>
+          )}
         </div>
       </div>
       <div className="settings-toolbar agent-toolbar">
@@ -110,6 +128,9 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
         </span>
       </div>
       {error && <Alert tone="danger">{error}</Alert>}
+      {isAdmin && computerError && (
+        <Alert tone="warning">电脑列表暂不可用：{computerError}</Alert>
+      )}
       <div className="settings-agent-grid">
         {filtered.map((agent) => (
           <AgentCard
@@ -117,6 +138,15 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
             agent={agent}
             provider={state.providers.find((item) => item.id === agent.providerId)}
             projectCount={projectCount(agent)}
+            computer={computers.find((item) => item.id === agent.computerId)}
+            onViewComputer={
+              isAdmin && computers.some((item) => item.id === agent.computerId)
+                ? () =>
+                    setViewingComputer(
+                      computers.find((item) => item.id === agent.computerId)!,
+                    )
+                : undefined
+            }
             busy={busy !== null}
             onToggle={() => void toggle(agent)}
             onEdit={() => {
@@ -157,6 +187,8 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
           agents={state.agents}
           providers={state.providers}
           skills={state.skills ?? []}
+          computers={computers}
+          canManageComputers={isAdmin}
           mutate={mutate}
           notify={notify}
           onSaved={editing.agent ? undefined : clearFilters}
@@ -170,6 +202,26 @@ export function AgentCenter({ state, mutate, notify }: SettingsProps) {
           mutate={mutate}
           notify={notify}
           onClose={() => setDeleting(null)}
+        />
+      )}
+      {isAdmin && managingComputers && (
+        <ComputerManager
+          computers={computers}
+          agents={state.agents}
+          onClose={() => setManagingComputers(false)}
+          onChanged={refreshComputers}
+          onView={setViewingComputer}
+        />
+      )}
+      {isAdmin && viewingComputer && state.currentUser && (
+        <ComputerViewer
+          key={viewingComputer.id}
+          computer={viewingComputer}
+          userId={state.currentUser.id}
+          onClose={() => {
+            setViewingComputer(null);
+            refreshComputers();
+          }}
         />
       )}
     </div>

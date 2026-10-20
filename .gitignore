@@ -22,3 +22,6 @@ backups/
 output/
 *.tsbuildinfo
 .playwright-cli/
+__pycache__/
+*.pyc
+.venv/

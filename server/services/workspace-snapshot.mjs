@@ -1,6 +1,7 @@
 import { publicProvider } from "../providers/config.mjs";
 import { workflowReadiness } from "../workflow/readiness.mjs";
 import { projectTask } from "./project-tasks.mjs";
+import { publicComputer } from "./computers.mjs";
 import {
   publicUser,
   projectAccess,
@@ -104,6 +105,8 @@ export function workspaceSnapshot(
     agents: state.agents.map((agent) => publicAgent(agent, user)),
     skills: (state.skills || []).map((skill) => publicSkill(skill, user)),
     providers: user?.role === "admin" ? state.providers.map(publicProvider) : [],
+    computers:
+      user?.role === "admin" ? (state.computers || []).map(publicComputer) : [],
   };
   if (!compact && projectId === undefined)
     return {

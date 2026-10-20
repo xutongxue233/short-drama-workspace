@@ -32,7 +32,7 @@ export async function request<T>(
   path: string,
   body?: unknown,
   method = "POST",
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; responseType?: "blob" } = {},
 ): Promise<T> {
   const revision = sessionRevision;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -42,6 +42,7 @@ export async function request<T>(
     method,
     credentials: "same-origin",
     signal: options.signal,
+    ...(options.responseType === "blob" ? { cache: "no-store" as const } : {}),
     headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
@@ -56,6 +57,13 @@ export async function request<T>(
     throw new ApiError("登录已失效，请重新登录", 401);
   }
   if (response.status === 204) return undefined as T;
+  if (response.ok && options.responseType === "blob") {
+    const blob = await response.blob();
+    ensureCurrent();
+    if (!["image/png", "image/jpeg"].includes(blob.type))
+      throw new ApiError("电脑未返回有效画面，请检查电脑连接。", response.status);
+    return blob as T;
+  }
   let result: unknown;
   try {
     result = await response.json();
@@ -102,4 +110,8 @@ export async function request<T>(
     throw new ApiError(message, response.status);
   }
   return result as T;
+}
+
+export function requestScreen(path: string, signal?: AbortSignal) {
+  return request<Blob>(path, undefined, "GET", { signal, responseType: "blob" });
 }

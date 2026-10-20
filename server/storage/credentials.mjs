@@ -24,64 +24,68 @@ export function createCredentialVault(filename) {
     if (key.length !== 32) throw new Error("模型凭据加密密钥文件无效，请从备份恢复。");
     return key;
   }
-  const context = (id) => Buffer.from(`frameflow-provider-key-v1:${id}`);
+  const collections = [
+    ["providers", "apiKey", "frameflow-provider-key-v1"],
+    ["computers", "token", "frameflow-computer-token-v1"],
+  ];
   return {
     seal(state) {
-      if (!Array.isArray(state.providers)) return state;
-      return {
-        ...state,
-        providers: state.providers.map((provider) => {
-          if (!provider.apiKey) return provider;
-          if (typeof provider.apiKey !== "string")
-            throw new Error("模型凭据格式无效。");
-          const previous = sealed.get(provider.id);
-          if (previous?.plain === provider.apiKey)
-            return { ...provider, apiKey: previous.encrypted };
+      const result = { ...state };
+      for (const [collection, field, namespace] of collections) {
+        if (!Array.isArray(state[collection])) continue;
+        result[collection] = state[collection].map((entity) => {
+          const plain = entity[field];
+          if (!plain) return entity;
+          if (typeof plain !== "string") throw new Error("凭据格式无效。");
+          const identity = `${namespace}:${entity.id}`;
+          const previous = sealed.get(identity);
+          if (previous?.plain === plain)
+            return { ...entity, [field]: previous.encrypted };
           const iv = randomBytes(12);
           const cipher = createCipheriv("aes-256-gcm", loadKey(true), iv);
-          cipher.setAAD(context(provider.id));
-          const data = Buffer.concat([
-            cipher.update(provider.apiKey, "utf8"),
-            cipher.final(),
-          ]);
+          cipher.setAAD(Buffer.from(identity));
+          const data = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
           const encrypted = {
             cipher: "aes-256-gcm-v1",
             iv: iv.toString("base64"),
             tag: cipher.getAuthTag().toString("base64"),
             data: data.toString("base64"),
           };
-          sealed.set(provider.id, { plain: provider.apiKey, encrypted });
-          return { ...provider, apiKey: encrypted };
-        }),
-      };
+          sealed.set(identity, { plain, encrypted });
+          return { ...entity, [field]: encrypted };
+        });
+      }
+      return result;
     },
     open(state) {
-      for (const provider of state.providers || []) {
-        const encrypted = provider.apiKey;
-        if (!encrypted || typeof encrypted === "string") continue;
-        try {
-          if (encrypted.cipher !== "aes-256-gcm-v1")
-            throw new Error("Unknown credential format");
-          const iv = Buffer.from(encrypted.iv, "base64");
-          const tag = Buffer.from(encrypted.tag, "base64");
-          if (iv.length !== 12 || tag.length !== 16)
-            throw new Error("Invalid credential envelope");
-          const decipher = createDecipheriv("aes-256-gcm", loadKey(false), iv);
-          decipher.setAAD(context(provider.id));
-          decipher.setAuthTag(tag);
-          const plain = Buffer.concat([
-            decipher.update(Buffer.from(encrypted.data, "base64")),
-            decipher.final(),
-          ]).toString("utf8");
-          provider.apiKey = plain;
-          sealed.set(provider.id, { plain, encrypted });
-        } catch (cause) {
-          throw new Error(
-            "模型凭据无法解密，请恢复匹配的数据库和 .key 文件；不会覆盖现有凭据。",
-            { cause },
-          );
+      for (const [collection, field, namespace] of collections)
+        for (const entity of state[collection] || []) {
+          const encrypted = entity[field];
+          if (!encrypted || typeof encrypted === "string") continue;
+          const identity = `${namespace}:${entity.id}`;
+          try {
+            if (encrypted.cipher !== "aes-256-gcm-v1")
+              throw new Error("Unknown credential format");
+            const iv = Buffer.from(encrypted.iv, "base64");
+            const tag = Buffer.from(encrypted.tag, "base64");
+            if (iv.length !== 12 || tag.length !== 16)
+              throw new Error("Invalid credential envelope");
+            const decipher = createDecipheriv("aes-256-gcm", loadKey(false), iv);
+            decipher.setAAD(Buffer.from(identity));
+            decipher.setAuthTag(tag);
+            const plain = Buffer.concat([
+              decipher.update(Buffer.from(encrypted.data, "base64")),
+              decipher.final(),
+            ]).toString("utf8");
+            entity[field] = plain;
+            sealed.set(identity, { plain, encrypted });
+          } catch (cause) {
+            throw new Error(
+              "模型凭据无法解密，请恢复匹配的数据库和 .key 文件；不会覆盖现有凭据。",
+              { cause },
+            );
+          }
         }
-      }
       return state;
     },
   };

@@ -1,5 +1,12 @@
-import { Copy, MessageSquareText, Pencil, Sparkles, Trash2 } from "lucide-react";
-import { type Agent, type Provider } from "../../types";
+import {
+  Copy,
+  MessageSquareText,
+  Monitor,
+  Pencil,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import { type Agent, type Computer, type Provider } from "../../types";
 import { Button, IconButton, Switch } from "../../ui";
 import { agentIcon } from "./agentIcons";
 import { isBuiltInAgent } from "./agentConfig";
@@ -13,6 +20,8 @@ interface AgentCardProps {
   onEdit: () => void;
   onCopy: () => void;
   onDelete: () => void;
+  computer?: Computer;
+  onViewComputer?: () => void;
 }
 
 export function AgentCard({
@@ -24,6 +33,8 @@ export function AgentCard({
   onEdit,
   onCopy,
   onDelete,
+  computer,
+  onViewComputer,
 }: AgentCardProps) {
   const Icon = agentIcon(agent.id);
   return (
@@ -79,6 +90,27 @@ export function AgentCard({
         <p className="agent-binding-note">
           {provider ? "模型服务已停用" : "请配置模型服务后使用"}
         </p>
+      )}
+      {agent.computerId && (
+        <div className="agent-computer-binding">
+          <Monitor size={15} />
+          <span>
+            <strong>{computer?.name ?? "已绑定电脑"}</strong>
+            {computer?.control.mode === "human" && (
+              <small>人工接管中 · Agent 已暂停</small>
+            )}
+          </span>
+          {onViewComputer && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onViewComputer}
+              aria-label={`查看 ${agent.name} 的电脑`}
+            >
+              查看电脑
+            </Button>
+          )}
+        </div>
       )}
       <div className="settings-agent-footer">
         <span>

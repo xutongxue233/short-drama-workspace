@@ -11,6 +11,7 @@ const TEXT_FIELDS = [
   ["systemPrompt", 12000, true],
   ["model", 200, false],
   ["providerId", 100, false],
+  ["computerId", 100, false],
 ];
 
 /** Validate only supplied fields so older saved agents can still be maintained. */
@@ -43,6 +44,11 @@ export function agentInput(input, state, { creating = false, existing } = {}) {
     !state.providers.some((provider) => provider.id === patch.providerId)
   )
     throw new HttpError(400, "选择的模型接口不存在");
+  if (
+    patch.computerId &&
+    !(state.computers || []).some((computer) => computer.id === patch.computerId)
+  )
+    throw new HttpError(400, "选择的电脑不存在");
   // An override belongs to its provider; keep it only when explicitly resupplied.
   if (
     existing &&

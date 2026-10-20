@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import type { Agent, Provider, Skill } from "../../types";
+import type { Agent, Computer, Provider, Skill } from "../../types";
 import { AgentEditor } from "./AgentEditor";
 
 it("clears the old model override when switching to a different model service", async () => {
@@ -73,6 +73,73 @@ const custom: Agent = {
   color: "#7160cf",
   enabled: true,
 };
+
+const computer: Computer = {
+  id: "computer-1",
+  name: "剪辑工作站",
+  endpoint: "http://127.0.0.1:8765",
+  hasToken: true,
+  control: { mode: "agent" },
+};
+
+it("saves and clears an Agent's selected computer binding", async () => {
+  const mutate = vi.fn().mockResolvedValue({});
+  const props = {
+    providers: [],
+    computers: [computer],
+    canManageComputers: true,
+    mutate,
+    onClose: vi.fn(),
+    notify: vi.fn(),
+  };
+  const { unmount } = render(<AgentEditor agent={custom} {...props} />);
+  fireEvent.click(screen.getByRole("combobox", { name: "绑定电脑" }));
+  fireEvent.click(screen.getByRole("option", { name: "剪辑工作站" }));
+  fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
+  await waitFor(() =>
+    expect(mutate).toHaveBeenLastCalledWith(
+      "/agents/agent-dialogue",
+      expect.objectContaining({ computerId: "computer-1" }),
+      "PATCH",
+    ),
+  );
+  unmount();
+  render(<AgentEditor agent={{ ...custom, computerId: computer.id }} {...props} />);
+  expect(screen.getByRole("combobox", { name: "绑定电脑" }).textContent).toBe(
+    "剪辑工作站",
+  );
+  fireEvent.click(screen.getByRole("combobox", { name: "绑定电脑" }));
+  fireEvent.click(screen.getByRole("option", { name: "暂不绑定电脑" }));
+  fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
+  await waitFor(() =>
+    expect(mutate).toHaveBeenLastCalledWith(
+      "/agents/agent-dialogue",
+      expect.objectContaining({ computerId: "" }),
+      "PATCH",
+    ),
+  );
+});
+
+it("preserves an unavailable computer binding when saving unrelated Agent fields", async () => {
+  const mutate = vi.fn().mockResolvedValue({});
+  render(
+    <AgentEditor
+      agent={{ ...custom, computerId: "temporarily-unavailable" }}
+      providers={[]}
+      computers={[]}
+      canManageComputers
+      mutate={mutate}
+      onClose={vi.fn()}
+      notify={vi.fn()}
+    />,
+  );
+  expect(screen.getByRole("combobox", { name: "绑定电脑" }).textContent).toBe(
+    "原绑定电脑暂不可用",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
+  await waitFor(() => expect(mutate).toHaveBeenCalledOnce());
+  expect(mutate.mock.calls[0][1]).not.toHaveProperty("computerId");
+});
 
 it("saves editable role, color, prompt and enabled state together", async () => {
   const mutate = vi.fn().mockResolvedValue({});

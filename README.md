@@ -22,6 +22,8 @@ Frameflow brings source text, scripts, character designs, storyboards, generated
 
 It runs on your computer with a React interface, a Node.js API, and SQLite storage. Generation uses the model services you configure and may incur provider charges.
 
+Agents can be bound to a computer for read-only viewing or human takeover. Taking control pauses bound agents until explicitly released; interrupted production resumes manually. See the [computer connection guide (Chinese)](./docs/computers.zh-CN.md) for the Windows, macOS, and Linux X11 bridge.
+
 ## Features
 
 - **A workspace for each story.** Keep source chapters, conversations, creative assets, generated media, and memory separated by project.

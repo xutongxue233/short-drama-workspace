@@ -81,6 +81,7 @@ export function publicSkill(skill, user) {
 export function mountAuthorization(app, { getState, findProject }) {
   app.use("/api/providers", requireAdmin);
   app.use("/api/agents", requireAdmin);
+  app.use("/api/computers", requireAdmin);
   app.use("/api/skills", (req, res, next) => {
     // The directory is available for chat selection; instruction export and
     // every configuration operation remain administrator-only.

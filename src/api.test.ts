@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, onSessionExpired, request, setApiSession } from "./api";
+import {
+  ApiError,
+  onSessionExpired,
+  request,
+  requestScreen,
+  setApiSession,
+} from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -7,6 +13,60 @@ afterEach(() => {
 });
 
 describe("API boundary", () => {
+  it("fetches computer images with the authenticated same-origin boundary and no cache", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("pixels", { headers: { "Content-Type": "image/png" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    const result = await requestScreen("/computers/1/screen", controller.signal);
+    expect(result.type).toBe("image/png");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/computers/1/screen",
+      expect.objectContaining({
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: controller.signal,
+      }),
+    );
+  });
+
+  it("rejects computer images from a previous login session", async () => {
+    let finish!: (blob: Blob) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        blob: () =>
+          new Promise<Blob>((resolve) => {
+            finish = resolve;
+          }),
+      }),
+    );
+    const pending = requestScreen("/computers/1/screen");
+    await Promise.resolve();
+    setApiSession("new-user-token", "new-user");
+    finish(new Blob(["private-screen"], { type: "image/png" }));
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("rejects non-image computer responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response("not a screen", { headers: { "Content-Type": "text/html" } }),
+        ),
+    );
+    await expect(requestScreen("/computers/1/screen")).rejects.toThrow(
+      "电脑未返回有效画面",
+    );
+  });
   it("serializes mutations and forwards cancellation without persisting credentials", async () => {
     const fetchMock = vi
       .fn()

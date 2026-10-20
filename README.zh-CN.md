@@ -90,6 +90,8 @@ WORKBENCH_DATA_DIR=./data
 
 模型协议、角色确认、参考图传递与 Webhook 示例见[中文使用手册](./docs/usage.zh-CN.md)。
 
+Agent 可绑定电脑，在 Agent 中心随时查看画面或人工接管。接管会暂停绑定 Agent，退出接管后可手动继续任务。Windows、macOS 和 Linux X11 的连接端安装与访问说明见[电脑绑定与接管](./docs/computers.zh-CN.md)。
+
 ## 架构与数据
 
 ```text

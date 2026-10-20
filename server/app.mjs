@@ -22,6 +22,8 @@ import { mountSkillsRoutes } from "./routes/skills.mjs";
 import { mountChatRoutes } from "./routes/chat.mjs";
 import { mountProviderRoutes } from "./routes/providers.mjs";
 import { mountMaterialsRoutes } from "./routes/materials.mjs";
+import { createComputerService } from "./services/computers.mjs";
+import { mountComputerRoutes } from "./routes/computers.mjs";
 
 /** Application composition has no listener or process signal side effects. */
 export function createApp({
@@ -36,8 +38,10 @@ export function createApp({
   const auth = createAuthService({ getState, save: store.save, config });
   const save = auth.saveWithAudit;
   const materials = createMaterialService({ getState, save, dataDir: config.dataDir });
-  const workflow = createWorkflow({ getState, save, materials });
-  const chat = createChatService({ getState, save, workflow, materials });
+  const computers = createComputerService({ getState, save });
+  const workflow = createWorkflow({ getState, save, materials, computers });
+  const chat = createChatService({ getState, save, workflow, materials, computers });
+  computers.attachRunners({ workflow, chat });
   let closed = false;
   const findProject = (id) => {
     const project = getState().projects.find((item) => item.id === id);
@@ -54,6 +58,7 @@ export function createApp({
     findProject,
     auth,
     config,
+    computers,
   };
   app.disable("x-powered-by");
   app.use(requestBoundary(config));
@@ -80,6 +85,7 @@ export function createApp({
   mountMemoryRoutes(app, dependencies);
   mountAssetsRoutes(app, dependencies);
   mountAgentsRoutes(app, dependencies);
+  mountComputerRoutes(app, dependencies);
   mountSkillsRoutes(app, dependencies);
   mountChatRoutes(app, dependencies);
   const providerRoutes = mountProviderRoutes(app, dependencies);
@@ -103,13 +109,21 @@ export function createApp({
     app,
     store,
     workflow,
+    computers,
     materials,
     config,
     close() {
       if (closed) return;
       closed = true;
       const errors = [];
-      for (const resource of [chat, workflow, providerRoutes, materials, store]) {
+      for (const resource of [
+        computers,
+        chat,
+        workflow,
+        providerRoutes,
+        materials,
+        store,
+      ]) {
         try {
           resource.close();
         } catch (error) {

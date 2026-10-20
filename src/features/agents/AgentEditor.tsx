@@ -1,6 +1,12 @@
 import { useId, useState, type FormEvent } from "react";
 import { Check, ShieldCheck } from "lucide-react";
-import { type Agent, type Mutate, type Provider, type Skill } from "../../types";
+import {
+  type Agent,
+  type Computer,
+  type Mutate,
+  type Provider,
+  type Skill,
+} from "../../types";
 import {
   Alert,
   Button,
@@ -25,6 +31,8 @@ export function AgentEditor({
   agents = [],
   providers,
   skills = [],
+  computers = [],
+  canManageComputers = false,
   onClose,
   onSaved,
   mutate,
@@ -35,6 +43,8 @@ export function AgentEditor({
   agents?: Agent[];
   providers: Provider[];
   skills?: Skill[];
+  computers?: Computer[];
+  canManageComputers?: boolean;
   onClose: () => void;
   onSaved?: () => void;
   mutate: Mutate;
@@ -54,6 +64,8 @@ export function AgentEditor({
   const [model, setModel] = useState(source.model);
   const [enabled, setEnabled] = useState(source.enabled);
   const [skillIds, setSkillIds] = useState(source.skillIds ?? []);
+  const [computerId, setComputerId] = useState(source.computerId ?? "");
+  const computerChanged = computerId !== (source.computerId ?? "");
   const skillBindingsChanged =
     JSON.stringify(skillIds) !== JSON.stringify(source.skillIds ?? []);
   const [saving, setSaving] = useState(false);
@@ -76,7 +88,8 @@ export function AgentEditor({
     providerId !== source.providerId ||
     model !== source.model ||
     enabled !== source.enabled ||
-    skillBindingsChanged;
+    skillBindingsChanged ||
+    computerChanged;
   async function save(event: FormEvent) {
     event.preventDefault();
     if (saving || modelError) return;
@@ -99,6 +112,9 @@ export function AgentEditor({
           model: model.trim(),
           enabled,
           ...(!agent || skillBindingsChanged ? { skillIds } : {}),
+          ...(canManageComputers && (computerChanged || (!agent && computerId))
+            ? { computerId }
+            : {}),
         },
         agent ? "PATCH" : "POST",
       );
@@ -252,6 +268,29 @@ export function AgentEditor({
               }
               placeholder="留空使用服务的默认模型"
             />
+            {canManageComputers && (
+              <Field
+                label="绑定电脑"
+                htmlFor={`${formId}-computer`}
+                hint="绑定后可随时查看画面；人工接管期间，绑定该电脑的 Agent 暂停操作。电脑连接在 Agent 中心的「管理电脑」中维护。"
+              >
+                <Select
+                  value={computerId}
+                  onChange={(event) => setComputerId(event.target.value)}
+                >
+                  <option value="">暂不绑定电脑</option>
+                  {computerId && !computers.some((item) => item.id === computerId) && (
+                    <option value={computerId}>原绑定电脑暂不可用</option>
+                  )}
+                  {computers.map((computer) => (
+                    <option key={computer.id} value={computer.id}>
+                      {computer.name}
+                      {computer.control.mode === "human" ? " · 人工接管中" : ""}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
             <Field
               label="系统提示词"
               htmlFor={`${formId}-prompt`}
